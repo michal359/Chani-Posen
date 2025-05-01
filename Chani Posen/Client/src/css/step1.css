@@ -1,0 +1,184 @@
+.details {
+    border: 1px solid #c7c7c7;
+    box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
+    border-radius: 10px;
+    padding: 20px 30px;
+}
+
+
+/*input*/
+.inputGroup {
+    margin: 0.9em 0 1em 0;
+    max-width: 800px;
+    position: relative;
+}
+
+.inputGroup input {
+    font-size: 100%;
+    padding: 0.8em;
+    outline: none;
+    border: 2px solid rgb(255, 255, 255);
+    background-color: transparent;
+    border-radius: 20px;
+    width: 100%;
+}
+
+.inputGroup label {
+    font-size: 100%;
+    position: absolute;
+    left: 0;
+    padding: 0.8em;
+    margin-left: 0.5em;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    color: rgb(173, 173, 173);
+}
+
+.inputGroup :is(input:focus, input:valid)~label {
+    transform: translateY(-50%) scale(.9);
+    margin: 0em;
+    margin-left: 1.3em;
+    padding: 0.4em;
+    background-color: #ffffff;
+}
+
+.inputGroup :is(input:focus, input:valid) {
+    border-color: rgb(1, 168, 168);
+}
+
+
+  /*gender*/
+
+  .gender-card {
+    width: fit-content;
+    height: fit-content;
+    align-items: center;
+    flex-direction: column;
+    justify-content: flex-start;
+    border-radius: 20px;
+    font-family: Arial, Helvetica, sans-serif;
+    gap: 25px;
+  }
+  .large-svg-container {
+    width: auto;
+    height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(45deg);
+  }
+  .largemalesvg {
+    transform: rotate(180deg);
+  }
+  .heading {
+    color: #1d1d1d;
+    font-weight: 600;
+    font-size: 25px;
+    text-align: center;
+  }
+  .gender-radio-buttons {
+    display: none;
+  }
+  .smallsvg {
+    width: 10px;
+  }
+  .other-gender {
+    width: 15px;
+  }
+  .malesmallsvg {
+    transform: rotate(225deg);
+  }
+  .genderlabel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    height: fit-content;
+    background-color: rgb(46, 46, 46);
+    border-radius: 5px;
+    padding: 8px 16px;
+    gap: 8px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease-out;
+  }
+  
+  .radio-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 25px;
+  }
+  .femalebutton:hover {
+    background-color: rgb(245, 185, 195);
+  }
+  .malebutton:hover {
+    background-color: #569fcf;
+  }
+  .otherbutton:hover {
+    background-color: #4d227a;
+  }
+  #female:checked + .femalebutton {
+    background-color: rgb(245, 185, 195);
+    transform: scale(1.1);
+  }
+  #male:checked + .malebutton {
+    background-color: #569fcf;
+    transform: scale(1.1);
+  }
+  #other:checked + .otherbutton {
+    background-color: #4d227a;
+    transform: scale(1.2);
+  }
+  
+  .date-picker-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+  
+  .date-picker-input {
+    width: 100%;
+    padding: 10px;
+    padding-right: 40px; 
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    outline: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  
+  .date-picker-input:focus {
+    border-color: #007bff;
+    box-shadow: 0 2px 5px rgba(0, 123, 255, 0.5);
+  }
+  
+  .date-picker-container::before {
+    content: '';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    background: url('path-to-calendar-icon.svg') no-repeat center center;
+    background-size: contain;
+    pointer-events: none;
+  }
+  
+  .icon-container {
+    position: absolute;
+    right: 10px; 
+    pointer-events: none; 
+    display: flex;
+    align-items: center;
+    height: 100%;
+  }
+  

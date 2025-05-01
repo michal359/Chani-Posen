@@ -1,0 +1,391 @@
+.card {
+    --font-color: #323232;
+    --bg-color: #e0e0e0;
+    border-radius: 20px;
+    background: var(--bg-color);
+    box-shadow: -9px 9px 18px #5a5a5a,
+                9px -9px 18px #ffffff;
+    display: flex;
+    flex-direction: column;
+    transition: .4s;
+    position: relative;
+  }
+  
+  .card:hover {
+    /* transform: scale(1.02); */
+    box-shadow: 0px 0px 10px 2px #5a5a5a;
+  }
+  
+  .card__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 20px 20px 0 0;
+    background-color: rgb(27, 194, 166);
+  }
+  
+  .card__descr-wrapper {
+    padding: 15px;
+    display: grid;
+  }
+  
+  .card__title {
+    color: var(--font-color);
+    /* text-align: center; */
+    margin-bottom: 15px;
+    font-weight: 900;
+    font-size: 26px;
+  }
+
+  .card__phone, .card__email {
+    color: var(--font-color);
+    /* text-align: left; */
+    margin-bottom: 15px;
+    font-weight: 900;
+    font-size: 16px;
+  }
+
+  .emailDiv {
+    display: flex;
+    gap: 5px;
+  }
+  .phoneDiv {
+    display: flex;
+    gap: 5px;
+  }
+  .nameDiv {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .genderDiv {
+    display: flex;
+    gap: 10px;
+  }
+
+  .aboutDiv {
+    display: flex;
+    gap: 10px;
+  }
+
+  .card__descr {
+    color: var(--font-color);
+  }
+  
+
+/*social links*/
+
+  .wrapper_ {
+    list-style: none;
+    width: 100%;
+    padding-top: 20px;
+    font-family: "Poppins", sans-serif;
+    display: flex;
+    justify-content: center;
+  }
+  
+  .wrapper_ .icon {
+    position: relative;
+    background: #fff;
+    border-radius: 50%;
+    margin: 10px;
+    width: 40px;
+    height: 40px;
+    font-size: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    box-shadow: 0 10px 10px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+  
+  .wrapper_ .tooltip {
+    position: absolute;
+    top: 0;
+    font-size: 14px;
+    background: #fff;
+    color: #fff;
+    padding: 5px 8px;
+    border-radius: 5px;
+    box-shadow: 0 10px 10px rgba(0, 0, 0, 0.1);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+  
+
+.wrapper_ .instagram {
+  color: #e4405f;
+}
+.wrapper_ .twitter {
+  color: #1da1f2;
+}
+.wrapper_ .facebook {
+  color: #1877f2;
+}
+
+
+  .wrapper_ .tooltip::before {
+    position: absolute;
+    content: "";
+    height: 8px;
+    width: 8px;
+    background: #fff;
+    bottom: -3px;
+    left: 50%;
+    transform: translate(-50%) rotate(45deg);
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+  
+  .wrapper_ .icon:hover .tooltip {
+    top: -45px;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+  
+  .wrapper_ .icon:hover span,
+  .wrapper_ .icon:hover .tooltip {
+    text-shadow: 0px -1px 0px rgba(0, 0, 0, 0.1);
+  }
+  
+  .wrapper_ .facebook:hover,
+  .wrapper_ .facebook:hover .tooltip,
+  .wrapper_ .facebook:hover .tooltip::before {
+    background: #1877f2;
+    color: #fff;
+  }
+  
+  .wrapper_ .twitter:hover,
+  .wrapper_ .twitter:hover .tooltip,
+  .wrapper_ .twitter:hover .tooltip::before {
+    background: #1da1f2;
+    color: #fff;
+  }
+  
+  .wrapper_ .instagram:hover,
+  .wrapper_ .instagram:hover .tooltip,
+  .wrapper_ .instagram:hover .tooltip::before {
+    background: #e4405f;
+    color: #fff;
+  }
+
+
+  .editBtn {
+    width: 55px;
+    height: 55px;
+    border-radius: 20px;
+    border: none;
+    background-color: rgb(73, 197, 187);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.123);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+  }
+  .editBtn::before {
+    content: "";
+    width: 200%;
+    height: 200%;
+    background-color: rgb(73, 197, 187);
+    position: absolute;
+    z-index: 1;
+    transform: scale(0);
+    transition: all 0.3s;
+    border-radius: 50%;
+    filter: blur(10px);
+  }
+  .editBtn:hover::before {
+    transform: scale(1);
+  }
+  .editBtn:hover {
+    box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.336);
+  }
+  
+  .editBtn svg {
+    height: 17px;
+    fill: white;
+    z-index: 3;
+    transition: all 0.2s;
+    transform-origin: bottom;
+  }
+  .editBtn:hover svg {
+    transform: rotate(-15deg) translateX(5px);
+  }
+  .editBtn::after {
+    content: "";
+    width: 25px;
+    height: 1.5px;
+    position: absolute;
+    bottom: 19px;
+    left: -5px;
+    background-color: white;
+    border-radius: 2px;
+    z-index: 2;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.5s ease-out;
+  }
+  .editBtn:hover::after {
+    transform: scaleX(1);
+    left: 0px;
+    transform-origin: right;
+  }
+  
+  
+
+  /*------ Settings ------*/
+.container {
+    --color: #a5a5b0;
+    --size: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    font-size: var(--size);
+    user-select: none;
+    fill: var(--color);
+  }
+  
+  .container .chevron-right {
+    position: absolute;
+    animation: keyframes-return .5s;
+  }
+  
+  .container .chevron-down {
+    position: absolute;
+    display: none;
+    animation: keyframes-fill .5s;
+  }
+  
+  /* ------ On check event ------ */
+  .container input:checked ~ .chevron-right {
+    display: none;
+  }
+  
+  .container input:checked ~ .chevron-down {
+    display: block;
+  }
+  
+  /* ------ Hide the default checkbox ------ */
+  .container input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+  }
+  
+  /* ------ Animation ------ */
+  @keyframes keyframes-fill {
+    0% {
+      transform: rotate(-90deg) scale(0);
+      opacity: 0;
+    }
+  
+    50% {
+      transform: rotate(0deg) scale(1.2);
+    }
+  }
+  
+  @keyframes keyframes-return {
+    0% {
+      transform: rotate(90deg) scale(0);
+      opacity: 0;
+    }
+  
+    50% {
+      transform: rotate(0deg) scale(1.2);
+    }
+  }
+
+  .deleteButton {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .deleteButton svg {
+    width: 44%;
+  }
+  .deleteButton:hover {
+    background-color: rgb(237, 56, 56);
+    overflow: visible;
+  }
+  .bin path {
+    transition: all 0.2s;
+  }
+  .deleteButton:hover .bin path {
+    fill: #fff;
+  }
+  .deleteButton:active {
+    transform: scale(0.98);
+  }
+
+  .inputGroup {
+    margin-bottom: 20px;
+}
+/* ------ On check event ------ */
+.container input:checked ~ .chevron-right {
+  display: none;
+}
+
+.container input:checked ~ .chevron-down {
+  display: block;
+}
+
+/* ------ Hide the default checkbox ------ */
+.container input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.bookmarkBtn {
+  width: 100px;
+  height: 40px;
+  border-radius: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.349);
+  background-color: rgb(12, 12, 12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition-duration: 0.3s;
+  overflow: hidden;
+}
+
+.IconContainer {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(to bottom, rgb(136, 255, 209), rgb(70, 218, 255));
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  z-index: 2;
+  transition-duration: 0.3s;
+}
+
+.icon {
+  border-radius: 1px;
+}

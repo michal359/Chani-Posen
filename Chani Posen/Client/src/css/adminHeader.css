@@ -1,0 +1,103 @@
+/* adminHeader.css */
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #333;
+  color: white;
+  padding: 10px 20px;
+  direction: rtl;
+}
+
+.left-section, .right-section {
+  display: flex;
+  gap: 15px;
+}
+
+.icon-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  position: relative;
+}
+
+.icon-button:hover {
+  color: #ddd;
+}
+
+.icon-button::after {
+  content: \"\";
+  position: absolute;ש/* adminHeader.css */
+  .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #333;
+      color: white;
+      padding: 10px 20px;
+      direction: rtl;
+  }
+  
+  .right-section, .left-section {
+      display: flex;
+      gap: 15px;
+  }
+  
+  .icon-button {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+  }
+  
+  .icon-button:hover {
+      color: #ddd;
+  }
+  
+  /* Specific button icons (replace with your desired icons) */
+  .home-button::before {
+      content: '\\1F3E0'; /* Unicode for house icon */
+  }
+  
+  .clients-button::before {
+      content: '\\1F464'; /* Unicode for person icon */
+  }
+  
+  .products-button::before {
+      content: '\\1F6D2'; /* Unicode for shopping cart */
+  }
+  
+  .posts-button::before {
+      content: '\\1F4DD'; /* Unicode for memo */
+  }
+  
+  .profile-button::before {
+      content: '\\1F464'; /* Unicode for person icon */
+  }
+  
+  .notifications-button::before {
+      content: '\\1F514'; /* Unicode for bell */
+  }
+  
+  .settings-button::before {
+      content: '\\2699'; /* Unicode for gear */
+  }
+  
+  top: -5px;
+  right: -5px;
+  width: 10px;
+  height: 10px;
+  background-color: red;
+  border-radius: 50%;
+  display: none;
+}
+
+.icon-button.notifications::after {
+  display: block;
+}
