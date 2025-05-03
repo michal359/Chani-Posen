@@ -117,7 +117,7 @@ export default function ClientPurchases({ clientId, userData }) {
                 onClose={handleCloseModal}
                 aria-labelledby="add-purchase-modal"
                 aria-describedby="form-to-add-purchase"
-            > //דכדדכ
+            > 
                 <AddPurchaseModal onClose={handleCloseModal} clientId={clientId} userData={userData} setPurchases={setPurchases} onSuccess={onSuccess} onError={onError} />
             </Modal>
 
