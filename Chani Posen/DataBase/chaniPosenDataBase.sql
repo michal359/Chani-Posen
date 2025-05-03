@@ -17,6 +17,7 @@ CREATE TABLE users (
     birth_date DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     role_id INT,
+    is_verified BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (role_id) 
       REFERENCES roles (role_id) 
       ON UPDATE RESTRICT 
@@ -156,16 +157,16 @@ VALUES
 ('Admin'),
 ('Client');
 
-INSERT INTO users (username, first_name, last_name, email, phone, birth_date, role_id) 
+INSERT INTO users (username, first_name, last_name, email, phone, birth_date, role_id, is_verified) 
 VALUES 
-('michalAdmin1', 'מיכל', 'מנהל', 'michal0548429273@gmail.com', '0548429273', '2004-09-10', 1),
-('chaniAdmin2', 'חני', 'מנהל', 'michal0548429273@gmail.com', '0548475867', '2004-11-23', 1),
-('chaniClient3', 'חני', 'לקוח', 'michal0548429273@gmail.com', '0548475867', '2004-11-23', 2),
-('DanaCohen4', 'דנה', 'כהן', 'michal0548429273@gmail.com', '0548429273', '1990-12-15', 2),
-('SaraLevi5', 'שרה', 'לוי', 'michal0548429273@gmail.com', '0548429273', '1985-07-20', 2),
-('RachelMizrahi6', 'רחל', 'מזרחי', 'michal0548429273@gmail.com', '0548429273', '1992-12-12', 2),
-('ShiraBar7', 'שירה', 'בר', 'michal0548429273@gmail.com', '0548429273', '1988-08-03', 2),
-('TehilaOr8', 'תהילה', 'אור', 'michal0548429273@gmail.com', '0548429273', '1995-04-10', 2);
+('michalAdmin1', 'מיכל', 'מנהל', 'michal0548429273@gmail.com', '0548429273', '2004-09-10', 1, TRUE),
+('chaniAdmin2', 'חני', 'מנהל', 'michal0548429273@gmail.com', '0548475867', '2004-11-23', 1, TRUE),
+('chaniClient3', 'חני', 'לקוח', 'michal0548429273@gmail.com', '0548475867', '2004-11-23', 2, TRUE),
+('DanaCohen4', 'דנה', 'כהן', 'michal0548429273@gmail.com', '0548429273', '1990-12-15', 2, TRUE),
+('SaraLevi5', 'שרה', 'לוי', 'michal0548429273@gmail.com', '0548429273', '1985-07-20', 2, TRUE),
+('RachelMizrahi6', 'רחל', 'מזרחי', 'michal0548429273@gmail.com', '0548429273', '1992-12-12', 2, TRUE),
+('ShiraBar7', 'שירה', 'בר', 'michal0548429273@gmail.com', '0548429273', '1988-08-03', 2, TRUE),
+('TehilaOr8', 'תהילה', 'אור', 'michal0548429273@gmail.com', '0548429273', '1995-04-10', 2, FALSE);
     
 INSERT INTO passwords (user_id, user_password, salt) 
 VALUES 
@@ -255,26 +256,3 @@ VALUES
 
 UPDATE products SET purchase_count = 1 WHERE product_id = 2;
 UPDATE products SET purchase_count = 1 WHERE product_id = 4;
-
--- INSERT INTO notifications (
---     user_id, notification_text, notification_type, entity_type, entity_id, link
--- )
--- VALUES
--- -- טיפולים בסטטוס לא שולם
--- (1, 'ללקוחה שרה לוי יש טיפול מסוג בייסיק בתאריך 2024-11-02 עם סטטוס לא שולם.', 'FINANCIAL', 'TREATMENT', 6, '/dashboard/clients/5/treatments/6'),
--- (1, 'ללקוחה רחל מזרחי יש טיפול מסוג יופי בתאריך 2024-12-02 עם סטטוס לא שולם.', 'FINANCIAL', 'TREATMENT', 2, '/dashboard/clients/6/treatments/2'),
--- (1, 'ללקוחה שירה בר יש טיפול מסוג פוסט אקנה בתאריך 2024-12-04 עם סטטוס לא שולם.', 'FINANCIAL', 'TREATMENT', 9, '/dashboard/clients/7/treatments/9'),
-
--- -- רכישות בסטטוס לא שולם
--- (1, 'ללקוחה שרה לוי יש רכישה של פרופוליס שלא שולמה.', 'FINANCIAL', 'PURCHASE', 3, '/dashboard/clients/5/purchases/3'),
--- (1, 'ללקוחה שירה בר יש רכישה של ג׳ל ניקוי שלא שולמה.', 'FINANCIAL', 'PURCHASE', 4, '/dashboard/clients/7/purchases/4'),
-
--- -- המלצה שנרכשה
--- (1, 'הלקוחה דנה כהן רכשה את המוצר שהומלץ לה: סרום ריסורפיסינג.', 'PRODUCT', 'RECOMMENDATION', 2, '/dashboard/clients/4/recommendations/2'),
-
--- -- תמונות חדשות
--- (1, 'הועלתה תמונה חדשה על ידי הלקוחה דנה כהן לאחר טיפול.', 'PERSONAL', 'IMAGE', 5, '/dashboard/clients/4/images/5'),
--- (1, 'הועלתה תמונה חדשה על ידי הלקוחה רחל מזרחי לאחר טיפול.', 'PERSONAL', 'IMAGE', 6, '/dashboard/clients/6/images/6'),
-
--- -- תזכורת לטיפול עתידי
--- (1, 'מחר יש טיפול מתוכנן ללקוחה תהילה אור – בדקי את הלו״ז והתכונני :)', 'TREATMENT', 'TREATMENT', 8, '/dashboard/clients/8/treatments/8');

@@ -82,19 +82,19 @@ async function createNewClient(body) {
             await model.updateUsername(result.userId, username);
             console.log('Email being sent to client:', body.email);
 
-             // שולחת מייל ללקוח
-             try {
+            // שולחת מייל ללקוח
+            try {
                 console.log("Sending email to client...");
                 await sendAccountDetailsToClient(body.email, body.first_name, username, password);
             } catch (err) {
                 console.error("Failed to send email to client:", err);
             }
-            
 
-             // שולחת מייל למערכת
-             await notifyClinicOfNewClient(body.email, body, username, password);
+
+            // שולחת מייל למערכת
+            await notifyClinicOfNewClient(body.email, body, username, password);
             return { ...result, username };
-        } 
+        }
     } catch (err) {
         throw err;
     }
@@ -143,14 +143,6 @@ async function sendAccountDetailsToClient(clientEmail, clientName, username, pas
             </div>
         `
     };
-    // const mailOptions = {
-    //     from: process.env.EMAIL_USER,
-    //     to: clientEmail,
-    //     subject: 'בדיקת שליחה פשוטה',
-    //     text: 'היי, זהו מייל בדיקה פשוט ביותר. רואים אותי?',
-    //   };
-      
-      
 
     try {
         const info = await transporter.sendMail(mailOptions);

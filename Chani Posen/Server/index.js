@@ -9,6 +9,12 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser()); 
 
+const bodyParser = require('body-parser');
+const authRoutes = require('./routes/auth');
+
+app.use(bodyParser.json());
+app.use('/api/auth', authRoutes);
+
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
   origin: 'http://localhost:5173',
