@@ -5,8 +5,6 @@ import axios from 'axios';
 axios.defaults.withCredentials = true;
 import { Container, Typography, TextField, Button, Box, Alert, Link } from '@mui/material';
 
-// import '../css/login.css';
-
 const Login = ({ setUserData }) => {
 
   const navigate = useNavigate();

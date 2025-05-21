@@ -151,6 +151,14 @@ CREATE TABLE notifications (
         ON DELETE CASCADE
 );
 
+CREATE TABLE password_reset_tokens (
+    token_id CHAR(36) PRIMARY KEY,
+    user_id INT NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
 
 INSERT INTO roles (role_name) 
 VALUES 
@@ -166,7 +174,7 @@ VALUES
 ('SaraLevi5', 'שרה', 'לוי', 'michal0548429273@gmail.com', '0548429273', '1985-07-20', 2, TRUE),
 ('RachelMizrahi6', 'רחל', 'מזרחי', 'michal0548429273@gmail.com', '0548429273', '1992-12-12', 2, TRUE),
 ('ShiraBar7', 'שירה', 'בר', 'michal0548429273@gmail.com', '0548429273', '1988-08-03', 2, TRUE),
-('TehilaOr8', 'תהילה', 'אור', 'michal0548429273@gmail.com', '0548429273', '1995-04-10', 2, FALSE);
+('TehilaOr8', 'תהילה', 'אור', 'michal0548429273@gmail.com', '0548429273', '1995-04-10', 2, TRUE);
     
 INSERT INTO passwords (user_id, user_password, salt) 
 VALUES 

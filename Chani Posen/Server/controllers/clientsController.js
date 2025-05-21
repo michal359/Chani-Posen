@@ -3,6 +3,15 @@ const crypto = require('crypto');
 require('dotenv').config();
 const { transliterate } = require('transliteration');
 const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken');
+const { v4: uuidv4 } = require('uuid');
+
+// פונקציה שיוצרת טוקן עם טוקף של יומיים
+function generateToken() {
+    const tokenId = uuidv4();
+    const expiresAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000); 
+    return { tokenId, expiresAt };
+}
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -20,16 +29,6 @@ function generateUsername(firstName, lastName, userId) {
     const englishLastName = transliterate(lastName).replace(/[^a-zA-Z]/g, "");
     return `${englishFirstName}${englishLastName}${userId}`;
 }
-
-
-const generatePassword = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+';
-    let password = '';
-    for (let i = 0; i < 8; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return password;
-};
 
 async function getAllClients(req, res) {
     try {
@@ -71,28 +70,27 @@ async function updateClient(body, id) {
 
 async function createNewClient(body) {
     try {
-        const password = generatePassword();
-        const salt = crypto.randomBytes(16).toString('hex');
-        const saltedPassword = password + salt;
-        const hashedPassword = crypto.createHash('sha256').update(saltedPassword).digest('hex');
+        // const password = generatePassword();
+        // const salt = crypto.randomBytes(16).toString('hex');
+        // const saltedPassword = password + salt;
+        // const hashedPassword = crypto.createHash('sha256').update(saltedPassword).digest('hex');
 
-        const result = await model.createNewClient(body, hashedPassword, salt);
+        const result = await model.createNewClient(body);
         if (result.ok) {
-            const username = generateUsername(body.first_name, body.last_name, result.userId);
-            await model.updateUsername(result.userId, username);
-            console.log('Email being sent to client:', body.email);
+            const userId = result.userId;
+            const username = generateUsername(body.first_name, body.last_name, userId);
+            await model.updateUsername(userId, username);
 
-            // שולחת מייל ללקוח
-            try {
-                console.log("Sending email to client...");
-                await sendAccountDetailsToClient(body.email, body.first_name, username, password);
-            } catch (err) {
-                console.error("Failed to send email to client:", err);
-            }
+            const { tokenId, expiresAt } = generateToken();
+            await model.insertPasswordResetToken(tokenId, userId, expiresAt); // פונקציה חדשה במודל
 
+            // 4. שלח מייל עם קישור לטוקן
+            const verificationUrl = `http://localhost:5173/verify-account/${tokenId}`;
+            await sendVerificationEmail(body.email, body.first_name, verificationUrl);
 
-            // שולחת מייל למערכת
-            await notifyClinicOfNewClient(body.email, body, username, password);
+            // 5. הודעה למערכת על לקוח חדש
+            await notifyClinicOfNewClient(body.email, body, username);
+
             return { ...result, username };
         }
     } catch (err) {
@@ -126,34 +124,33 @@ async function getClientsCount() {
     }
 }
 
-async function sendAccountDetailsToClient(clientEmail, clientName, username, password) {
+async function sendVerificationEmail(clientEmail, clientName, verificationUrl) {
     const mailOptions = {
         from: process.env.EMAIL_USER,
         to: clientEmail,
-        subject: 'התחברות למערכת הקליניקה',
+        subject: 'אימות חשבון למערכת הקליניקה',
         html: `
             <div style="font-family: Arial, sans-serif; direction: rtl; text-align: right;">
-                <h2>היי ${clientName},</h2>
-                <p>ברוכה הבאה למערכת הקליניקה!</p>
-                <p>שם המשתמש שלך: <strong>${username}</strong></p>
-                <p>הסיסמה שלך: <strong>${password}</strong></p>
-                <p>התחברי למערכת כאן: <a href="http://localhost:5173/">כניסה למערכת</a></p>
+                <h2>שלום ${clientName},</h2>
+                <p>הצטרפת למערכת הקליניקה – אנא אשרי את חשבונך על ידי לחיצה על הקישור הבא:</p>
+                <p><a href="${verificationUrl}">אימות חשבון והגדרת סיסמה</a></p>
                 <br>
-                <p style="color: gray;">אם לא את יצרת את החשבון הזה, אנא התעלמי מהמייל.</p>
+                <p style="color: gray;">אם לא את יצרת את החשבון, ניתן להתעלם מהמייל.</p>
             </div>
         `
     };
 
     try {
         const info = await transporter.sendMail(mailOptions);
-        console.log("📤 מייל נשלח ללקוחה:", info.response);
+        console.log("📤 מייל אימות נשלח:", info.response);
     } catch (error) {
-        console.error("❌ שגיאה בשליחת מייל ללקוחה:", error);
+        console.error("❌ שגיאה בשליחת מייל אימות:", error);
     }
 }
 
 
-async function notifyClinicOfNewClient(clientEmail, clientDetails, username, password) {
+
+async function notifyClinicOfNewClient(clientEmail, clientDetails, username) {
     const mailOptions = {
         from: process.env.EMAIL_USER,
         to: process.env.EMAIL_USER,
@@ -166,7 +163,6 @@ async function notifyClinicOfNewClient(clientEmail, clientDetails, username, pas
                     <li>אימייל: ${clientEmail}</li>
                     <li>טלפון: ${clientDetails.phone || 'לא נמסר'}</li>
                     <li>שם משתמש: ${username}</li>
-                    <li>סיסמה: ${password}</li>
                 </ul>
             </div>
         `

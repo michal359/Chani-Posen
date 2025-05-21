@@ -117,7 +117,7 @@ async function updateClient(body, id) {
     }
 }
 
-async function createNewClient(body, hashedPassword, salt) {
+async function createNewClient(body) {
     try {
         const { username, first_name, last_name, email, phone, birth_date, treatment_status, skin_type } = body;
         const formattedBirthDate = new Date(birth_date).toISOString().split('T')[0];
@@ -130,16 +130,21 @@ async function createNewClient(body, hashedPassword, salt) {
         const clientQuery = 'INSERT INTO clients (client_id, treatment_status, skin_type) VALUES (?,?,?)';
         await pool.query(clientQuery, [userId, treatment_status, skin_type]);
 
-        const passwordQuery = 'INSERT INTO passwords (user_id, user_password, salt) VALUES (?,?,?)';
-        await pool.query(passwordQuery, [userId, hashedPassword, salt]);
-        console.log("user id in new client ", userId)
-
         return { userId, ok: true };
     } catch (err) {
         console.error('Error creating client: ', err);
         throw err;
     }
 }
+
+async function insertPasswordResetToken(tokenId, userId, expiresAt) {
+    const query = `
+        INSERT INTO password_reset_tokens (token_id, user_id, expires_at)
+        VALUES (?, ?, ?)
+    `;
+    await pool.query(query, [tokenId, userId, expiresAt]);
+}
+
 
 async function updateUsername(userId, username) {
     try {
@@ -195,4 +200,4 @@ async function getClientsCount() {
     }
 }
 
-module.exports = { getAllClients, getClientsCount, getClient, updateClient, getUniqueUsername, createNewClient, updateUsername, getClientsByProductId, deleteClient };
+module.exports = { getAllClients, getClientsCount, getClient, updateClient, getUniqueUsername, createNewClient, insertPasswordResetToken, updateUsername, getClientsByProductId, deleteClient };
