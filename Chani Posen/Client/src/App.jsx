@@ -20,6 +20,7 @@ import Notifications from './pages/Notifications'
 import Overview from './pages/Overview'
 import Accounts from './pages/Accounts'
 import Schedule from './pages/Schedule'
+import VerifyAccount from './pages/VerifyAccount'
 import AdminProfile from './components/AdminProfile'
 
 import { serverRequests } from './Api'
@@ -80,6 +81,8 @@ function App() {
             <Route path="login" element={<Login setUserData={setUserData} />} />
             <Route path="register" element={<Registration setUserData={setUserData} />} />
           </Route>
+
+          <Route path="/verify-account/:token" element={<VerifyAccount />} />
 
           <Route path="/admin-home" element={<HomeLayout setUserData={setUserData} userData={userData} role={1} />} >
             <Route index element={<AdminHome userData={userData} />} />

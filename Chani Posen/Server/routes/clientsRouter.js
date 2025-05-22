@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const controller = require('../controllers/clientsController')
+const verificationController = require('../controllers/verificationController')
 router.use(express.json());
 router.use(express.urlencoded({ extended: true }));
 const authorizeAdmin = require("../middleware/authorizeAdmin")
@@ -64,5 +65,30 @@ router.delete('/:id', authorizeAdmin,  async (req, res) => {
         res.status(500).send({ ok: false });
     }
 })
+
+router.get('/verify-token/:token', async (req, res) => {
+    try {
+        const token = req.params.token;
+        res.send(await verificationController.verifyToken(token));
+    } catch (err) {
+        res.status(500).send({ ok: false });
+    }
+});
+
+router.post('/set-password', async (req, res) => {
+    try {
+        res.send(await verificationController.setPassword(req.body));
+    } catch (err) {
+        res.status(500).send({ ok: false });
+    }
+});
+
+router.post('/resend-verification', async (req, res) => {
+    try {
+        res.send(await verificationController.resendVerification(req.body));
+    } catch (err) {
+        res.status(500).send({ ok: false });
+    }
+});
 
 module.exports = router
