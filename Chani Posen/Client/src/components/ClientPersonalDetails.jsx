@@ -15,7 +15,7 @@ export default function ClientPersonalDetails({ }) {
     return <Typography>Loading...</Typography>;
   }
 
-  const { birth_date: birthDate, email, phone, treatment_status: treatmentStatus, skin_type: skinType, created_at, username } = clientData;
+  const { birth_date: birthDate, email, phone, treatment_status: treatmentStatus, skin_type: skinType, created_at, username, is_verified } = clientData;
 
   const statusColors = {
     "שלב 1 - איבחון": "#AEE5FF",
@@ -24,6 +24,7 @@ export default function ClientPersonalDetails({ }) {
     "שלב 4 - התמדה ומעקב": "#66FF66",
     "עדיין לא פנתה לקבלת שירות": "#FF85C1",
   };
+
 
 
   const skinTypeColor = "#B68FFF";
@@ -103,6 +104,10 @@ export default function ClientPersonalDetails({ }) {
           second: '2-digit'
         }) : 'לא זמין'}
       </Typography>
+      <Typography sx={{ fontWeight: 'bold', color: !!is_verified ? 'green' : 'red' }}>
+  {!!is_verified ? 'הלקוחה מאומתת' : 'הלקוחה לא מאומתת'}
+</Typography>
+
     </Stack>
   );
 }

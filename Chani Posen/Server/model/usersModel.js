@@ -13,7 +13,7 @@ async function getUser(id) {
 
         if (!roleResult[0][0].role_id) {
             const setRole = `UPDATE users SET role_id = ? where user_id =?`
-            await pool.query(setRole, [3, id]);
+            await pool.query(setRole, [2, id]);
         }
         switch (roleResult[0][0].role_id) {
             case 1:

@@ -52,7 +52,8 @@ async function getClient(id) {
     u.phone, 
     u.birth_date, 
     u.created_at, 
-    u.role_id, 
+    u.role_id,
+    u.is_verified, 
     c.treatment_status, 
     c.skin_type,
     i.image_path AS profile_image

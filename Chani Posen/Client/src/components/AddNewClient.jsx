@@ -15,6 +15,8 @@ import {
 } from "@mui/material";
 import { serverRequests } from "../Api";
 import CloseIcon from '@mui/icons-material/Close';
+import CircularProgress from '@mui/material/CircularProgress';
+
 
 
 const AddNewClient = ({ addClientToList, userData }) => {
@@ -33,6 +35,7 @@ const AddNewClient = ({ addClientToList, userData }) => {
     const [image, setImage] = useState(null);
     const [imageUrl, setImageUrl] = useState("");
     const modalRef = useRef(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     const handleImageUpload = (event) => {
         const file = event.target.files[0];
@@ -84,10 +87,10 @@ const AddNewClient = ({ addClientToList, userData }) => {
     };
 
     useEffect(() => {
-            if (errors) {
-                modalRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-            }
-        }, [errors]);
+        if (errors) {
+            modalRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+        }
+    }, [errors]);
 
     const handleSave = async () => {
         setErrors("");
@@ -96,7 +99,7 @@ const AddNewClient = ({ addClientToList, userData }) => {
             setErrors(errorMsg);
             return;
         }
-
+        setIsSaving(true);
         try {
             const newClient = {
                 first_name: formData.firstName,
@@ -124,29 +127,29 @@ const AddNewClient = ({ addClientToList, userData }) => {
 
             if (image) {
                 console.log("details of image ", image, newClientId, userData.user_id);
-    
+
                 const formData1 = new FormData();
                 formData1.append("image", image);
                 formData1.append("user_id", newClientId);
                 formData1.append("image_type", "profile");
                 formData1.append("description", `תמונת פרופיל של לקוח ${newClientId}`);
-    
+
                 const uploadResponse = await serverRequests("POST", `uploads/${userData.user_id}`, formData1);
-    
+
                 if (!uploadResponse.ok) {
                     throw new Error("Failed to upload profile image");
                 }
-    
+
                 const imageData = await uploadResponse.json();
-    
+
                 const savedClient = {
                     ...newClient,
                     profile_image: imageData.imagePath
                 };
-    
+
                 addClientToList({ ...savedClient, user_id: newClientId });
             }
-    
+
             toast.success(`לקוח נוסף בהצלחה: ${formData.firstName} ${formData.lastName}`);
             setModalOpen(false);
             setFormData({
@@ -159,10 +162,12 @@ const AddNewClient = ({ addClientToList, userData }) => {
                 skinType: '',
                 imagePath: ''
             });
-    
+
         } catch (error) {
             console.error('Error adding client:', error);
             toast.error('שגיאה בהוספת לקוח. נסי שוב.');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -189,6 +194,7 @@ const AddNewClient = ({ addClientToList, userData }) => {
             </Tooltip>
 
             <Modal open={isModalOpen} onClose={() => setModalOpen(false)}>
+
                 <Box
                     ref={modalRef}
                     sx={{
@@ -207,6 +213,7 @@ const AddNewClient = ({ addClientToList, userData }) => {
                 >
                     <IconButton
                         onClick={handleCloseModal}
+                        disabled={isSaving}
                         sx={{
                             position: "absolute",
                             top: 10,
@@ -230,6 +237,7 @@ const AddNewClient = ({ addClientToList, userData }) => {
                         error={!!errors.firstName}
                         helperText={errors.firstName}
                         margin="normal"
+                        disabled={isSaving}
                     />
                     <TextField
                         fullWidth
@@ -240,6 +248,7 @@ const AddNewClient = ({ addClientToList, userData }) => {
                         error={!!errors.lastName}
                         helperText={errors.lastName}
                         margin="normal"
+                        disabled={isSaving}
                     />
                     <TextField
                         fullWidth
@@ -250,6 +259,7 @@ const AddNewClient = ({ addClientToList, userData }) => {
                         error={!!errors.email}
                         helperText={errors.email}
                         margin="normal"
+                        disabled={isSaving}
                     />
                     <TextField
                         fullWidth
@@ -266,6 +276,7 @@ const AddNewClient = ({ addClientToList, userData }) => {
                         helperText={errors.phone}
                         margin="normal"
                         inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
+                        disabled={isSaving}
                     />
                     <TextField
                         fullWidth
@@ -278,6 +289,7 @@ const AddNewClient = ({ addClientToList, userData }) => {
                         helperText={errors.birthDate}
                         margin="normal"
                         InputLabelProps={{ shrink: true }}
+                        disabled={isSaving}
                     />
                     <TextField
                         fullWidth
@@ -292,6 +304,7 @@ const AddNewClient = ({ addClientToList, userData }) => {
                         SelectProps={{
                             native: true,
                         }}
+                        disabled={isSaving}
                     >
                         <option value="">בחר סטטוס טיפול</option>
                         <option value="שלב 1 - איבחון">שלב 1 - איבחון</option>
@@ -313,6 +326,7 @@ const AddNewClient = ({ addClientToList, userData }) => {
                         SelectProps={{
                             native: true,
                         }}
+                        disabled={isSaving}
                     >
                         <option value="">בחר סוג עור</option>
                         <option value="רגיל">רגיל</option>
@@ -331,7 +345,7 @@ const AddNewClient = ({ addClientToList, userData }) => {
                             id="image-upload"
                         />
                         <label htmlFor="image-upload">
-                            <Button variant="contained" component="span">
+                            <Button variant="contained" component="span" disabled={isSaving}>
                                 העלאת תמונת פרופיל
                             </Button>
                         </label>
@@ -349,22 +363,24 @@ const AddNewClient = ({ addClientToList, userData }) => {
                                     borderRadius: "8px",
                                 }}
                             />
-                            <Button color="error" onClick={handleRemoveImage} sx={{ mt: 1 }}>
+                            <Button color="error" onClick={handleRemoveImage} sx={{ mt: 1 }} disabled={isSaving}>
                                 מחיקת תמונה
                             </Button>
                         </Box>
                     )}
 
                     <Box sx={{ display: "flex", justifyContent: "space-between", marginTop: 2 }}>
-                        <Button variant="contained" color="primary" onClick={handleSave}>
-                            הוספה
+                        <Button variant="contained" color="primary" onClick={handleSave} disabled={isSaving}>
+                            {isSaving ? <CircularProgress size={24} color="inherit" /> : "הוספה"}
                         </Button>
-                        <Button variant="outlined" onClick={handleCloseModal}>
+
+                        <Button variant="outlined" onClick={handleCloseModal} disabled={isSaving}>
                             ביטול
                         </Button>
                     </Box>
 
                 </Box>
+
             </Modal>
         </div>
     );
