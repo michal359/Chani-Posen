@@ -1,21 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { serverRequests } from '../Api';
 import ClientCard from '../components/ClientCard';
 import ClientTable from '../components/ClientTable';
 import AddNewClient from '../components/AddNewClient';
 import {
-    Box,
-    Button,
-    Select,
-    MenuItem,
-    Typography,
-    Grid,
+    Box, Button, Select, MenuItem, Typography, Grid
 } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import TextField from "@mui/material/TextField";
 import { ViewList, GridView } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import CircularProgress from '@mui/material/CircularProgress';
 import '../css/loadingPoints.css';
 
 const rtlTheme = createTheme({
@@ -33,45 +29,94 @@ export default function Clients({ userData }) {
     const [selectedSkinType, setSelectedSkinType] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('');
     const [viewMode, setViewMode] = useState('table');
-    const [currentPage, setCurrentPage] = useState(1);
+    const [clients, setClients] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const [page, setPage] = useState(1);
     const clientsPerPage = 8;
-    const [totalPages, setTotalPages] = useState(1);
+
 
     const navigate = useNavigate();
+    const loaderRef = useRef(null);
 
-    useEffect(() => {
-        const fetchClients = async () => {
-            let allClientsArray = [];
-            try {
-                const url = `clients?page=${currentPage}&limit=${clientsPerPage}`;
-                const response = await serverRequests('GET', url, null);
+    const loadMoreClients = async () => {
+        if (loading || !hasMore) return;
+        setLoading(true);
+console.log("📦 page", page);
 
-                if (!response.ok) {
-                    console.error('Failed to fetch clients');
-                    return;
-                }
+        try {
+            const url = `clients?page=${page}&limit=${clientsPerPage}`;
+            const response = await serverRequests('GET', url, null);
 
-                const data = await response.json();
-                if (data && data.clients) {
-                    allClientsArray = data.clients;
-                    setTotalPages(data.totalPages || 1); 
-                } else {
-                    console.log('No clients available');
-                }
+            if (!response.ok) {
+                console.error('Failed to fetch clients');
+                return;
+            }
 
-                allClientsArray.sort((a, b) =>
+            const data = await response.json();
+            if (data?.clients?.length > 0) {
+                const sorted = [...clients, ...data.clients].sort((a, b) =>
                     a.first_name.localeCompare(b.first_name, 'he')
                 );
-                setAllClients(allClientsArray);
-                setFilteredClients(allClientsArray);
+                setAllClients(sorted);
+                setClients(sorted);
 
-            } catch (error) {
-                console.error('Error fetching clients:', error);
+                if (!searchTerm && !selectedSkinType && !selectedStatus && !showBirthdays) {
+                    setFilteredClients(sorted);
+                }
+
+                setPage(prev => prev + 1);
+
+                if (data.clients.length < clientsPerPage) {
+                    setHasMore(false);
+                }
+            } else {
+                setHasMore(false);
             }
-        };
+        } catch (error) {
+            console.error('Error fetching clients:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        fetchClients();
-    }, [currentPage]);
+    useEffect(() => {
+        loadMoreClients();
+    }, []);
+
+    useEffect(() => {
+    if (!loaderRef.current) return;
+
+    const observer = new IntersectionObserver(
+        entries => {
+            const entry = entries[0];
+            if (entry.isIntersecting && hasMore && !loading) {
+                console.log("📌 Observed. Loading more...");
+                loadMoreClients();
+            }
+        },
+        {
+            root: null,
+            rootMargin: '100px',
+            threshold: 1.0,
+        }
+    );
+
+    observer.observe(loaderRef.current);
+
+    return () => {
+        if (loaderRef.current) {
+            observer.unobserve(loaderRef.current);
+        }
+    };
+}, [hasMore, loading]); // שים לב: רק תלות ב-hasMore ו-loading
+
+
+    useEffect(() => {
+        if (!searchTerm && !selectedSkinType && !selectedStatus && !showBirthdays) {
+            setFilteredClients(clients);
+        }
+    }, [clients, searchTerm, selectedSkinType, selectedStatus, showBirthdays]);
 
     const filterClientsByBirthday = (clients) => {
         const currentMonth = new Date().getMonth() + 1;
@@ -106,52 +151,30 @@ export default function Clients({ userData }) {
                 const matchesStatus = status === '' || client.treatment_status === status;
                 return matchesName && matchesSkinType && matchesStatus;
             });
-    
+
             setFilteredClients(filtered);
-            setCurrentPage(1);  // מתחילים מהדף הראשון
-            setTotalPages(Math.ceil(filtered.length / clientsPerPage));  // מחשבים מחדש את מספר הדפים
         }
     };
-    
-
 
     const clearFilters = () => {
         setSearchTerm('');
         setSelectedSkinType('');
         setSelectedStatus('');
         setShowBirthdays(false);
-        setFilteredClients(allClients);
-        setCurrentPage(1);
-    };
+        setClients([]);
+        setFilteredClients([]);
+        setAllClients([]);
+        setPage(1);
+        setHasMore(true);
 
-    if (!allClients)
-        return (
-            <div style={{ textAlign: 'center' }}>
-                <svg className="pl" width="240" height="240" viewBox="0 0 240 240">
-                    <circle className="pl__ring pl__ring--a" cx="120" cy="120" r="105" fill="none" stroke="#000" strokeWidth="20" strokeDasharray="0 660" strokeDashoffset="-330" strokeLinecap="round"></circle>
-                    <circle className="pl__ring pl__ring--b" cx="120" cy="120" r="35" fill="none" stroke="#000" strokeWidth="20" strokeDasharray="0 220" strokeDashoffset="-110" strokeLinecap="round"></circle>
-                    <circle className="pl__ring pl__ring--c" cx="85" cy="120" r="70" fill="none" stroke="#000" strokeWidth="20" strokeDasharray="0 440" strokeLinecap="round"></circle>
-                    <circle className="pl__ring pl__ring--d" cx="155" cy="120" r="70" fill="none" stroke="#000" strokeWidth="20" strokeDasharray="0 440" strokeLinecap="round"></circle>
-                </svg>
-                <p>טוען נתונים</p>
-            </div>
-        );
-
-    const handlePageChange = (newPage) => {
-        if (newPage >= 1 && newPage <= totalPages) {
-            setCurrentPage(newPage);
-        }
+        setTimeout(() => {
+            loadMoreClients();
+        }, 100);
     };
 
     const displayedClients = showBirthdays
-    ? filterClientsByBirthday(filteredClients || [])
-    : (filteredClients || []);
-
-// חיתוך הלקוחות לפי דפים
-const startIndex = (currentPage - 1) * clientsPerPage;
-const endIndex = startIndex + clientsPerPage;
-const clientsForCurrentPage = displayedClients.slice(startIndex, endIndex);
-
+        ? filterClientsByBirthday(filteredClients || [])
+        : (filteredClients || []);
 
     const skinTypes = [
         { label: 'הכל', value: '' },
@@ -172,24 +195,38 @@ const clientsForCurrentPage = displayedClients.slice(startIndex, endIndex);
     ];
 
     const addClientToList = (newClient) => {
-        setAllClients(prevClients => {
-            const updatedClients = [...prevClients, newClient].sort((a, b) =>
+        setAllClients(prev => {
+            const updated = [...prev, newClient].sort((a, b) =>
                 a.first_name.localeCompare(b.first_name, 'he')
             );
-            return updatedClients;
+            return updated;
         });
 
-        setFilteredClients(prevClients => {
-            const updatedFilteredClients = [...prevClients, newClient].sort((a, b) =>
+        setFilteredClients(prev => {
+            const updated = [...prev, newClient].sort((a, b) =>
                 a.first_name.localeCompare(b.first_name, 'he')
             );
-            return updatedFilteredClients;
+            return updated;
         });
     };
 
     const handleRowClick = (clientId) => {
         navigate(`/admin-home/clients/${clientId}`);
     };
+
+
+    if (!allClients || allClients.length === 0 && loading)
+        return (
+            <div style={{ textAlign: 'center' }}>
+                <svg className="pl" width="240" height="240" viewBox="0 0 240 240">
+                    <circle className="pl__ring pl__ring--a" cx="120" cy="120" r="105" fill="none" stroke="#000" strokeWidth="20" strokeDasharray="0 660" strokeDashoffset="-330" strokeLinecap="round"></circle>
+                    <circle className="pl__ring pl__ring--b" cx="120" cy="120" r="35" fill="none" stroke="#000" strokeWidth="20" strokeDasharray="0 220" strokeDashoffset="-110" strokeLinecap="round"></circle>
+                    <circle className="pl__ring pl__ring--c" cx="85" cy="120" r="70" fill="none" stroke="#000" strokeWidth="20" strokeDasharray="0 440" strokeLinecap="round"></circle>
+                    <circle className="pl__ring pl__ring--d" cx="155" cy="120" r="70" fill="none" stroke="#000" strokeWidth="20" strokeDasharray="0 440" strokeLinecap="round"></circle>
+                </svg>
+                <p>טוען נתונים</p>
+            </div>
+        );
 
     return (
         <ThemeProvider theme={rtlTheme}>
@@ -360,79 +397,34 @@ const clientsForCurrentPage = displayedClients.slice(startIndex, endIndex);
                     </Button>
                 </div>
 
-                <Box display="flex" justifyContent="center" alignItems="center" marginTop={2}>
-    <Button disabled={currentPage === 1} onClick={() => handlePageChange(currentPage - 1)}>
-        הקודם
-    </Button>
-    <Typography sx={{ marginX: 2 }}>
-        עמוד {currentPage} מתוך {totalPages}
-    </Typography>
-    <Button disabled={currentPage === totalPages} onClick={() => handlePageChange(currentPage + 1)}>
-        הבא
-    </Button>
-</Box>
-
-
                 {displayedClients.length === 0 ? (
                     <Typography variant="h6" align="center" sx={{ mt: 4, color: 'gray' }}>
                         אין תוצאות התואמות לחיפוש שלך
                     </Typography>
-                ) :
-                    viewMode === 'table' ? (
-                        <ClientTable clients={displayedClients} onRowClick={handleRowClick} />
-                    ) : (
-                        <Grid
-                            container
-                            spacing={3} // ריווח בין הכרטיסים
-                            justifyContent="center" // מרכזת את הכרטיסים
-                            alignItems="stretch" // דואגת שכל הכרטיסים יהיו בגובה אחיד
-                        >
-                            {displayedClients.map(client => (
-                                <Grid
-                                    item
-                                    key={client.user_id}
-                                    xs={12}
-                                    sm={6}
-                                    md={4}
-                                    lg={3} // שולט ברוחב כל כרטיס במסכים שונים
-                                >
-                                    <div
-                                        onClick={() => handleRowClick(client.user_id)}
-                                        style={{
-                                            height: '100%', // מבטיח שכל הכרטיסים ימתחו לגובה אחיד
-                                            display: 'flex',
-                                            justifyContent: 'center', // מרכז כל כרטיס בתוך הגריד
-                                        }}
-                                    >
-                                        <ClientCard
-                                            firstName={client.first_name}
-                                            lastName={client.last_name}
-                                            email={client.email}
-                                            phone={client.phone}
-                                            birthday={client.birth_date}
-                                            status={client.treatment_status}
-                                            profileImage={client.profile_image}
-                                            skinType={client.skin_type}
-                                        />
-                                    </div>
-                                </Grid>
-                            ))}
-                        </Grid>
+                ) : viewMode === 'table' ? (
+                    <ClientTable clients={displayedClients} onRowClick={handleRowClick} />
+                ) : (
+                    <Grid container spacing={3} justifyContent="center" alignItems="stretch">
+                        {displayedClients.map(client => (
+                            <Grid item key={client.user_id} xs={12} sm={6} md={4} lg={3}>
+                                <div onClick={() => handleRowClick(client.user_id)} style={{ height: '100%', display: 'flex', justifyContent: 'center' }}>
+                                    <ClientCard {...client} />
+                                </div>
+                            </Grid>
+                        ))}
+                    </Grid>
+                )}
 
+                {/* 🔁 התחתית לצורך observer */}
+                <div ref={loaderRef} style={{ height: 100, margin: '20px auto' }}>
+                    {loading && (
+                        <Box display="flex" justifyContent="center" mt={4}>
+                            <CircularProgress color="secondary" />
+                        </Box>
                     )}
-
-<Box display="flex" justifyContent="center" alignItems="center" marginTop={2}>
-    <Button disabled={currentPage === 1} onClick={() => handlePageChange(currentPage - 1)}>
-        הקודם
-    </Button>
-    <Typography sx={{ marginX: 2 }}>
-        עמוד {currentPage} מתוך {totalPages}
-    </Typography>
-    <Button disabled={currentPage === totalPages} onClick={() => handlePageChange(currentPage + 1)}>
-        הבא
-    </Button>
-</Box>
-
+                </div>
+                {/* אלמנט תחתון בשביל ה־observer */}
+<div ref={loaderRef} style={{ height: '1px' }} />
 
             </Box>
         </ThemeProvider>
