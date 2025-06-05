@@ -19,7 +19,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 
 
 
-const AddNewClient = ({ addClientToList, userData }) => {
+const AddNewClient = ({ userData }) => {
     const [isModalOpen, setModalOpen] = useState(false);
     const [formData, setFormData] = useState({
         firstName: '',
@@ -142,12 +142,6 @@ const AddNewClient = ({ addClientToList, userData }) => {
 
                 const imageData = await uploadResponse.json();
 
-                const savedClient = {
-                    ...newClient,
-                    profile_image: imageData.imagePath
-                };
-
-                addClientToList({ ...savedClient, user_id: newClientId });
             }
 
             toast.success(`לקוח נוסף בהצלחה: ${formData.firstName} ${formData.lastName}`);

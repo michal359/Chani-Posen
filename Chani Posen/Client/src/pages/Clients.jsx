@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { serverRequests } from '../Api';
 import ClientCard from '../components/ClientCard';
 import ClientTable from '../components/ClientTable';
+import AddNewClient from '../components/AddNewClient';
 import {
     Box, Button, Typography, Grid
 } from "@mui/material";
@@ -19,7 +20,6 @@ const rtlTheme = createTheme({
 });
 
 export default function Clients({ userData }) {
-    const [allClients, setAllClients] = useState([]);
     const [viewMode, setViewMode] = useState('table');
     const [clients, setClients] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -30,7 +30,7 @@ export default function Clients({ userData }) {
 
     const navigate = useNavigate();
     const loaderRef = useRef(null);
-    const isFirstLoadRef = useRef(true); // חדש
+    const isFirstLoadRef = useRef(true); 
 
     const loadMoreClients = async () => {
         if (loading || !hasMore) return;
@@ -49,15 +49,14 @@ export default function Clients({ userData }) {
             const newClients = data.clients || [];
             const updatedClients = [...clients, ...newClients];
 
-            const sorted = updatedClients.sort((a, b) =>
-                a.first_name.localeCompare(b.first_name, 'he')
-            );
+            // const sorted = updatedClients.sort((a, b) =>
+            //     a.first_name.localeCompare(b.first_name, 'he')
+            // );
 
-            setAllClients(sorted);
-            setClients(sorted);
+            setClients(updatedClients);
             setTotalClients(data.totalClients || 0);
 
-            const totalSoFar = sorted.length;
+            const totalSoFar = updatedClients.length;
             const totalExpected = data.totalClients || 0;
 
             if (totalSoFar >= totalExpected || newClients.length < clientsPerPage) {
@@ -77,7 +76,6 @@ export default function Clients({ userData }) {
             // איפוס מצב ברענון
             setPage(1);
             setClients([]);
-            setAllClients([]);
             setHasMore(true);
             isFirstLoadRef.current = false;
 
@@ -129,9 +127,41 @@ export default function Clients({ userData }) {
         );
     }
 
+    // const addClientToList = (newClient) => {
+    //     setClients(prev => {
+    //         const updated = [...prev, newClient].sort((a, b) =>
+    //             a.first_name.localeCompare(b.first_name, 'he')
+    //         );
+    //         return updated;
+    //     });
+    // };
+
     return (
         <ThemeProvider theme={rtlTheme}>
             <Box padding={4} dir="rtl">
+                <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    gap={2}
+                    sx={{
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        marginBottom: '20px'
+                    }}
+                >
+                    <AddNewClient userData={userData} />
+                    {/* <TextField
+                        label="חיפוש לפי שם"
+                        variant="outlined"
+                        sx={{
+                            width: { xs: '90%', sm: '500px' },
+                            transition: 'width 0.3s ease-in-out',
+                        }}
+                        value={searchTerm}
+                        onChange={(e) => handleSearch(e.target.value)}
+
+                    /> */}
+                </Box>
                 <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginBottom: '20px' }}>
                     <Button
                         onClick={() => setViewMode('table')}
@@ -180,7 +210,18 @@ export default function Clients({ userData }) {
                         {clients.map(client => (
                             <Grid item key={client.user_id} xs={12} sm={6} md={4} lg={3}>
                                 <div onClick={() => handleRowClick(client.user_id)} style={{ height: '100%', display: 'flex', justifyContent: 'center' }}>
-                                    <ClientCard {...client} />
+                                    <ClientCard
+                                        firstName={client.first_name}
+                                        lastName={client.last_name}
+                                        email={client.email}
+                                        phone={client.phone}
+                                        birthday={client.birth_date}
+                                        status={client.treatment_status}
+                                        skinType={client.skin_type}
+                                        profileImage={client.profile_image}
+                                        onClick={() => handleRowClick(client.user_id)}
+                                    />
+
                                 </div>
                             </Grid>
                         ))}
