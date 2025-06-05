@@ -7,9 +7,11 @@ import AddNewClient from '../components/AddNewClient';
 import {
     Box, Button, Typography, Grid
 } from "@mui/material";
+import TextField from "@mui/material/TextField";
 import { ViewList, GridView } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import CircularProgress from '@mui/material/CircularProgress';
+import debounce from 'lodash.debounce'; 
 import '../css/loadingPoints.css';
 
 const rtlTheme = createTheme({
@@ -26,14 +28,15 @@ export default function Clients({ userData }) {
     const [hasMore, setHasMore] = useState(true);
     const [page, setPage] = useState(1);
     const [totalClients, setTotalClients] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
     const clientsPerPage = 8;
 
     const navigate = useNavigate();
     const loaderRef = useRef(null);
-    const isFirstLoadRef = useRef(true); 
+    const isFirstLoadRef = useRef(true);
 
     const loadMoreClients = async () => {
-        if (loading || !hasMore) return;
+        if (loading || !hasMore || searchTerm) return;
         setLoading(true);
 
         try {
@@ -49,17 +52,10 @@ export default function Clients({ userData }) {
             const newClients = data.clients || [];
             const updatedClients = [...clients, ...newClients];
 
-            // const sorted = updatedClients.sort((a, b) =>
-            //     a.first_name.localeCompare(b.first_name, 'he')
-            // );
-
             setClients(updatedClients);
             setTotalClients(data.totalClients || 0);
 
-            const totalSoFar = updatedClients.length;
-            const totalExpected = data.totalClients || 0;
-
-            if (totalSoFar >= totalExpected || newClients.length < clientsPerPage) {
+            if (updatedClients.length >= data.totalClients || newClients.length < clientsPerPage) {
                 setHasMore(false);
             } else {
                 setPage(prev => prev + 1);
@@ -72,19 +68,50 @@ export default function Clients({ userData }) {
     };
 
     useEffect(() => {
-        if (isFirstLoadRef.current) {
-            // איפוס מצב ברענון
-            setPage(1);
-            setClients([]);
-            setHasMore(true);
-            isFirstLoadRef.current = false;
+        const fetchSearchResults = async () => {
+            setLoading(true);
+            try {
+                const url = searchTerm
+                    ? `clients?search=${encodeURIComponent(searchTerm)}`
+                    : `clients?page=1&limit=${clientsPerPage}`;
 
+                const response = await serverRequests('GET', url, null);
+                if (!response.ok) {
+                    console.error('Failed to fetch clients');
+                    return;
+                }
+
+                const data = await response.json();
+                setClients(data.clients || []);
+                setHasMore(!searchTerm); 
+                setTotalClients(data.totalClients || 0);
+                if (!searchTerm) setPage(2);
+            } catch (error) {
+                console.error('Error during search:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const debouncedSearch = debounce(fetchSearchResults, 300);
+        debouncedSearch();
+
+        return () => {
+            debouncedSearch.cancel();
+        };
+    }, [searchTerm]);
+
+    // טעינה ראשונית
+    useEffect(() => {
+        if (isFirstLoadRef.current && !searchTerm) {
+            isFirstLoadRef.current = false;
             loadMoreClients();
         }
-    }, []);
+    }, [searchTerm]);
 
+    // גלילה אינסופית
     useEffect(() => {
-        if (!loaderRef.current) return;
+        if (!loaderRef.current || searchTerm) return;
 
         const observer = new IntersectionObserver(
             entries => {
@@ -107,61 +134,30 @@ export default function Clients({ userData }) {
                 observer.unobserve(loaderRef.current);
             }
         };
-    }, [hasMore, loading, loaderRef]);
+    }, [hasMore, loading, loaderRef, searchTerm]);
 
     const handleRowClick = (clientId) => {
         navigate(`/admin-home/clients/${clientId}`);
     };
 
-    if (clients.length === 0 && loading) {
-        return (
-            <div style={{ textAlign: 'center' }}>
-                <svg className="pl" width="240" height="240" viewBox="0 0 240 240">
-                    <circle className="pl__ring pl__ring--a" cx="120" cy="120" r="105" fill="none" stroke="#000" strokeWidth="20" strokeDasharray="0 660" strokeDashoffset="-330" strokeLinecap="round"></circle>
-                    <circle className="pl__ring pl__ring--b" cx="120" cy="120" r="35" fill="none" stroke="#000" strokeWidth="20" strokeDasharray="0 220" strokeDashoffset="-110" strokeLinecap="round"></circle>
-                    <circle className="pl__ring pl__ring--c" cx="85" cy="120" r="70" fill="none" stroke="#000" strokeWidth="20" strokeDasharray="0 440" strokeLinecap="round"></circle>
-                    <circle className="pl__ring pl__ring--d" cx="155" cy="120" r="70" fill="none" stroke="#000" strokeWidth="20" strokeDasharray="0 440" strokeLinecap="round"></circle>
-                </svg>
-                <p>טוען נתונים</p>
-            </div>
-        );
-    }
-
-    // const addClientToList = (newClient) => {
-    //     setClients(prev => {
-    //         const updated = [...prev, newClient].sort((a, b) =>
-    //             a.first_name.localeCompare(b.first_name, 'he')
-    //         );
-    //         return updated;
-    //     });
-    // };
+    const handleSearch = (term) => {
+        setSearchTerm(term);
+    };
 
     return (
         <ThemeProvider theme={rtlTheme}>
             <Box padding={4} dir="rtl">
-                <Box
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    gap={2}
-                    sx={{
-                        flexDirection: { xs: 'column', sm: 'row' },
-                        marginBottom: '20px'
-                    }}
-                >
+                <Box display="flex" alignItems="center" justifyContent="center" gap={2} sx={{ flexDirection: { xs: 'column', sm: 'row' }, marginBottom: '20px' }}>
                     <AddNewClient userData={userData} />
-                    {/* <TextField
+                    <TextField
                         label="חיפוש לפי שם"
                         variant="outlined"
-                        sx={{
-                            width: { xs: '90%', sm: '500px' },
-                            transition: 'width 0.3s ease-in-out',
-                        }}
+                        sx={{ width: { xs: '90%', sm: '500px' }, transition: 'width 0.3s ease-in-out' }}
                         value={searchTerm}
                         onChange={(e) => handleSearch(e.target.value)}
-
-                    /> */}
+                    />
                 </Box>
+
                 <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginBottom: '20px' }}>
                     <Button
                         onClick={() => setViewMode('table')}
@@ -172,9 +168,7 @@ export default function Clients({ userData }) {
                             borderRadius: '12px',
                             backgroundColor: viewMode === 'table' ? '#9370DB' : '#B68FFF',
                             color: '#fff',
-                            '&:hover': {
-                                backgroundColor: '#A256E8',
-                            },
+                            '&:hover': { backgroundColor: '#A256E8' },
                             boxShadow: viewMode === 'table' ? '0px 0px 10px #9370DB' : 'none'
                         }}
                     >
@@ -189,9 +183,7 @@ export default function Clients({ userData }) {
                             borderRadius: '12px',
                             backgroundColor: viewMode === 'cards' ? '#9370DB' : '#B68FFF',
                             color: '#fff',
-                            '&:hover': {
-                                backgroundColor: '#A256E8',
-                            },
+                            '&:hover': { backgroundColor: '#A256E8' },
                             boxShadow: viewMode === 'cards' ? '0px 0px 10px #9370DB' : 'none'
                         }}
                     >
@@ -199,7 +191,7 @@ export default function Clients({ userData }) {
                     </Button>
                 </div>
 
-                {clients.length === 0 ? (
+                {clients.length === 0 && !loading ? (
                     <Typography variant="h6" align="center" sx={{ mt: 4, color: 'gray' }}>
                         אין תוצאות התואמות לחיפוש שלך
                     </Typography>
@@ -221,7 +213,6 @@ export default function Clients({ userData }) {
                                         profileImage={client.profile_image}
                                         onClick={() => handleRowClick(client.user_id)}
                                     />
-
                                 </div>
                             </Grid>
                         ))}
@@ -234,7 +225,7 @@ export default function Clients({ userData }) {
                             <CircularProgress color="secondary" />
                         </Box>
                     )}
-                    {!hasMore && (
+                    {!hasMore && !searchTerm && (
                         <Typography variant="body2" align="center" sx={{ mt: 2, color: 'gray' }}>
                             אין עוד לקוחות להצגה
                         </Typography>

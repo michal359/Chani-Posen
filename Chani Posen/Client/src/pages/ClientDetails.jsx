@@ -166,7 +166,7 @@ export default function ClientDetails({ userData }) {
                             height: 200,
                             margin: '-40px auto 0',
                             width: '100vw',
-                            backgroundImage: 'url(https://i.pinimg.com/736x/c3/32/70/c332705a641e230444d13cd55be56b61.jpg)',
+                            backgroundImage: 'url(https://cdn.leonardo.ai/users/e259bcb5-dde9-4c23-83bd-11b3ab60662c/generations/f4686a43-d99d-47be-b89a-7367e5527844/segments/1:4:1/Flux_Dev_Create_a_soft_elegant_background_image_for_a_client_p_0.jpg)',
                             backgroundSize: 'cover',
                             backgroundPosition: 'center',
                         }}

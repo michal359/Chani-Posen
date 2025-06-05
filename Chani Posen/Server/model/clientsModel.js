@@ -41,6 +41,52 @@ const [result] = await pool.query(sql, [parseInt(limit), parseInt(offset)]);
     }
 }
 
+async function searchClientsByName(searchTerm) {
+    try {
+        const likeTerm = `%${searchTerm}%`;
+
+        const sql = `
+            SELECT DISTINCT 
+                u.user_id, 
+                u.username, 
+                u.first_name, 
+                u.last_name, 
+                u.email, 
+                u.phone, 
+                u.birth_date, 
+                u.created_at, 
+                u.role_id, 
+                c.treatment_status, 
+                c.skin_type, 
+                i.image_path AS profile_image
+            FROM users u
+            JOIN clients c ON u.user_id = c.client_id
+            LEFT JOIN images i ON u.user_id = i.user_id AND i.image_type = 'profile'
+            WHERE u.role_id = 2 
+              AND (
+                    u.first_name LIKE ? 
+                    OR u.last_name LIKE ?
+                    OR CONCAT(u.first_name, ' ', u.last_name) LIKE ?
+                )
+            ORDER BY u.last_name;
+        `;
+
+        const [result] = await pool.query(sql, [likeTerm, likeTerm, likeTerm]);
+
+        return {
+            success: true,
+            message: "Clients fetched by search successfully",
+            clients: result,
+            totalClients: result.length,
+        };
+    } catch (err) {
+        console.error("Error in searchClientsByName:", err);
+        throw new Error(err.message);
+    }
+}
+
+
+
 async function getClient(id) {
     try {
         const sql = `SELECT DISTINCT 
@@ -201,4 +247,4 @@ async function getClientsCount() {
     }
 }
 
-module.exports = { getAllClients, getClientsCount, getClient, updateClient, getUniqueUsername, createNewClient, insertPasswordResetToken, updateUsername, getClientsByProductId, deleteClient };
+module.exports = { getAllClients, searchClientsByName, getClientsCount, getClient, updateClient, getUniqueUsername, createNewClient, insertPasswordResetToken, updateUsername, getClientsByProductId, deleteClient };
