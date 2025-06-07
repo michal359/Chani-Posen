@@ -85,6 +85,57 @@ async function searchClientsByName(searchTerm) {
     }
 }
 
+async function filterClients({ status, skin }) {
+    try {
+        const filters = [];
+        const values = [];
+
+        if (status) {
+            filters.push("c.treatment_status = ?");
+            values.push(status);
+        }
+
+        if (skin) {
+            filters.push("c.skin_type = ?");
+            values.push(skin);
+        }
+
+        const whereClause = `WHERE u.role_id = 2${filters.length ? ' AND ' + filters.join(' AND ') : ''}`;
+
+        const sql = `
+            SELECT DISTINCT 
+                u.user_id, 
+                u.username, 
+                u.first_name, 
+                u.last_name, 
+                u.email, 
+                u.phone, 
+                u.birth_date, 
+                u.created_at, 
+                u.role_id, 
+                c.treatment_status, 
+                c.skin_type, 
+                i.image_path AS profile_image
+            FROM users u
+            JOIN clients c ON u.user_id = c.client_id
+            LEFT JOIN images i ON u.user_id = i.user_id AND i.image_type = 'profile'
+            ${whereClause}
+            ORDER BY u.last_name;
+        `;
+
+        const [result] = await pool.query(sql, values);
+
+        return {
+            success: true,
+            message: "Clients filtered successfully",
+            clients: result,
+            totalClients: result.length,
+        };
+    } catch (err) {
+        console.error("Error in filterClients:", err);
+        throw new Error(err.message);
+    }
+}
 
 
 async function getClient(id) {
@@ -247,4 +298,4 @@ async function getClientsCount() {
     }
 }
 
-module.exports = { getAllClients, searchClientsByName, getClientsCount, getClient, updateClient, getUniqueUsername, createNewClient, insertPasswordResetToken, updateUsername, getClientsByProductId, deleteClient };
+module.exports = { getAllClients, searchClientsByName, filterClients, getClientsCount, getClient, updateClient, getUniqueUsername, createNewClient, insertPasswordResetToken, updateUsername, getClientsByProductId, deleteClient };

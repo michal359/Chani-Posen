@@ -4,6 +4,7 @@ import { serverRequests } from '../Api';
 import ClientCard from '../components/ClientCard';
 import ClientTable from '../components/ClientTable';
 import AddNewClient from '../components/AddNewClient';
+import ClientFilters from '../components/ClientFilters';
 import {
     Box, Button, Typography, Grid
 } from "@mui/material";
@@ -34,6 +35,8 @@ export default function Clients({ userData }) {
     const [searchTerm, setSearchTerm] = useState('');
     const clientsPerPage = 8;
     const [showScrollButton, setShowScrollButton] = useState(false);
+    const [showFilters, setShowFilters] = useState(false);
+    const [filters, setFilters] = useState({ status: '', skin: '' });
 
     const navigate = useNavigate();
     const loaderRef = useRef(null);
@@ -167,18 +170,61 @@ export default function Clients({ userData }) {
         };
     }, []);
 
+    useEffect(() => {
+    const handleFilteredClients = (e) => {
+        const filtered = e.detail || [];
+
+        if (filters.status === '' && filters.skin === '') {
+            // חזרה ל'הצג הכל' → נאתחל את הטעינה הרגילה
+            setClients([]);
+            setPage(1);
+            setHasMore(true);
+            setSearchTerm('');
+            isFirstLoadRef.current = true; // הפעל מחדש את הטעינה הראשונית
+        } else {
+            setClients(filtered);
+            setHasMore(false); // כי בסינון קיבלנו את כל מה שיש
+            setSearchTerm('');
+        }
+    };
+
+    window.addEventListener('filteredClients', handleFilteredClients);
+    return () => {
+        window.removeEventListener('filteredClients', handleFilteredClients);
+    };
+}, [filters]);
+
+
+
     return (
         <ThemeProvider theme={rtlTheme}>
             <Box padding={4} dir="rtl">
                 <Box display="flex" alignItems="center" justifyContent="center" gap={2} sx={{ flexDirection: { xs: 'column', sm: 'row' }, marginBottom: '20px' }}>
                     <AddNewClient userData={userData} />
                     <TextField
-                        label="חיפוש לפי שם"
+                        placeholder="חיפוש לפי שם"
                         variant="outlined"
-                        sx={{ width: { xs: '90%', sm: '500px' }, transition: 'width 0.3s ease-in-out' }}
+                        sx={{ width: { xs: '90%', sm: '500px' }, transition: 'width 0.3s ease-in-out', dir: "rtl" }}
                         value={searchTerm}
                         onChange={(e) => handleSearch(e.target.value)}
                     />
+                    <Button
+                        variant="outlined"
+                        onClick={() => setShowFilters(true)}
+                        sx={{
+                            height: '56px',
+                            borderRadius: '12px',
+                            borderColor: '#B68FFF',
+                            color: '#B68FFF',
+                            '&:hover': {
+                                borderColor: '#A256E8',
+                                backgroundColor: '#F5EBFF',
+                            }
+                        }}
+                    >
+                        סינון
+                    </Button>
+
                 </Box>
 
                 <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginBottom: '20px' }}>
@@ -189,10 +235,10 @@ export default function Clients({ userData }) {
                             minWidth: '50px',
                             height: '50px',
                             borderRadius: '12px',
-                            backgroundColor: viewMode === 'table' ? '#9370DB' : '#B68FFF',
+                            backgroundColor: viewMode === 'table' ? '#A256E8' : '#B68FFF',
                             color: '#fff',
                             '&:hover': { backgroundColor: '#A256E8' },
-                            boxShadow: viewMode === 'table' ? '0px 0px 10px #9370DB' : 'none'
+                            boxShadow: viewMode === 'table' ? '0px 0px 10px #A256E8' : 'none'
                         }}
                     >
                         <ViewList />
@@ -204,10 +250,10 @@ export default function Clients({ userData }) {
                             minWidth: '50px',
                             height: '50px',
                             borderRadius: '12px',
-                            backgroundColor: viewMode === 'cards' ? '#9370DB' : '#B68FFF',
+                            backgroundColor: viewMode === 'cards' ? '#A256E8' : '#B68FFF',
                             color: '#fff',
                             '&:hover': { backgroundColor: '#A256E8' },
-                            boxShadow: viewMode === 'cards' ? '0px 0px 10px #9370DB' : 'none'
+                            boxShadow: viewMode === 'cards' ? '0px 0px 10px #A256E8' : 'none'
                         }}
                     >
                         <GridView />
@@ -245,7 +291,9 @@ export default function Clients({ userData }) {
                 <div ref={loaderRef} style={{ height: 100, margin: '20px auto' }}>
                     {loading && (
                         <Box display="flex" justifyContent="center" mt={4}>
-                            <CircularProgress color="secondary" />
+                            <CircularProgress
+                                sx={{ color: '#B68FFF' }}
+                            />
                         </Box>
                     )}
                     {!hasMore && !searchTerm && (
@@ -275,6 +323,14 @@ export default function Clients({ userData }) {
                     </Fab>
                 </Tooltip>
             )}
+            {showFilters && (
+                <ClientFilters
+                    filters={filters}
+                    setFilters={setFilters}
+                    onClose={() => setShowFilters(false)}
+                />
+            )}
+
 
         </ThemeProvider>
     );

@@ -6,45 +6,22 @@ router.use(express.json());
 router.use(express.urlencoded({ extended: true }));
 const authorizeAdmin = require("../middleware/authorizeAdmin")
 
-// router.get("/", authorizeAdmin, async (req, res) => {
-//     try {
-//         await controller.getAllClients(req, res);
-//     } catch (err) {
-//         console.error("Error in GET /:", err); 
-//         res.status(500).send({ ok: false, message: err.message });
-//     }
-// });
-
-// router.get("/", authorizeAdmin, async (req, res) => {
-//     try {
-//         const { search, page = 1, limit = 10 } = req.query;
-
-//         if (search) {
-//             await controller.searchClientsByName(search, res);
-//         } else {
-//             await controller.getAllClients({ page, limit }, res);
-//         }
-//     } catch (err) {
-//         console.error("Error in GET /clients:", err); 
-//         res.status(500).send({ ok: false, message: err.message });
-//     }
-// });
-
 router.get("/", authorizeAdmin, async (req, res) => {
     try {
-        const { search, page = 1, limit = 10 } = req.query;
+        const { search, page = 1, limit = 10, status, skin } = req.query;
 
         if (search && search.trim() !== "") {
             await controller.searchClientsByName(req, res);
+        } else if (status || skin) {
+            await controller.filterClients(req, res);
         } else {
             await controller.getAllClients(req, res);
         }
     } catch (err) {
-        console.error("Error in GET /clients:", err); 
+        console.error("Error in GET /clients:", err);
         res.status(500).send({ ok: false, message: err.message });
     }
 });
-
 
 router.get("/count", async (req, res) => {
     try {

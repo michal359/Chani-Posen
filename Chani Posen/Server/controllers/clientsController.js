@@ -58,7 +58,16 @@ async function searchClientsByName(req, res) {
     }
 }
 
-
+async function filterClients(req, res) {
+    try {
+        const { status, skin } = req.query;
+        const data = await model.filterClients({ status, skin });
+        res.send(data);
+    } catch (err) {
+        console.error("Error in filterClients:", err);
+        res.status(500).send({ success: false, message: err.message });
+    }
+}
 
 async function getClient(id) {
     try {
@@ -189,4 +198,4 @@ async function notifyClinicOfNewClient(clientEmail, clientDetails, username) {
 }
 
 
-module.exports = { getAllClients, searchClientsByName, getClientsCount, getClient, updateClient, getUniqueUsername, createNewClient, getClientsByProductId, deleteClient };
+module.exports = { getAllClients, searchClientsByName, filterClients, getClientsCount, getClient, updateClient, getUniqueUsername, createNewClient, getClientsByProductId, deleteClient };
