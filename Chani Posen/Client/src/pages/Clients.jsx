@@ -11,7 +11,10 @@ import TextField from "@mui/material/TextField";
 import { ViewList, GridView } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import CircularProgress from '@mui/material/CircularProgress';
-import debounce from 'lodash.debounce'; 
+import Fab from '@mui/material/Fab';
+import Tooltip from '@mui/material/Tooltip';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import debounce from 'lodash.debounce';
 import '../css/loadingPoints.css';
 
 const rtlTheme = createTheme({
@@ -30,6 +33,7 @@ export default function Clients({ userData }) {
     const [totalClients, setTotalClients] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const clientsPerPage = 8;
+    const [showScrollButton, setShowScrollButton] = useState(false);
 
     const navigate = useNavigate();
     const loaderRef = useRef(null);
@@ -83,7 +87,7 @@ export default function Clients({ userData }) {
 
                 const data = await response.json();
                 setClients(data.clients || []);
-                setHasMore(!searchTerm); 
+                setHasMore(!searchTerm);
                 setTotalClients(data.totalClients || 0);
                 if (!searchTerm) setPage(2);
             } catch (error) {
@@ -143,6 +147,25 @@ export default function Clients({ userData }) {
     const handleSearch = (term) => {
         setSearchTerm(term);
     };
+
+    const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (window.scrollY > 300) {
+                setShowScrollButton(true);
+            } else {
+                setShowScrollButton(false);
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+        };
+    }, []);
 
     return (
         <ThemeProvider theme={rtlTheme}>
@@ -232,6 +255,27 @@ export default function Clients({ userData }) {
                     )}
                 </div>
             </Box>
+            {showScrollButton && (
+                <Tooltip title="חזרה לראש הדף" arrow>
+                    <Fab
+                        color="secondary"
+                        aria-label="scroll-to-top"
+                        sx={{
+                            position: 'fixed',
+                            bottom: 20,
+                            right: 20,
+                            backgroundColor: '#B68FFF',
+                            '&:hover': {
+                                backgroundColor: '#A256E8',
+                            },
+                        }}
+                        onClick={scrollToTop}
+                    >
+                        <KeyboardArrowUpIcon />
+                    </Fab>
+                </Tooltip>
+            )}
+
         </ThemeProvider>
     );
 }
