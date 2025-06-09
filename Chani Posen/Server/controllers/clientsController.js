@@ -60,8 +60,8 @@ async function searchClientsByName(req, res) {
 
 async function filterClients(req, res) {
     try {
-        const { status, skin } = req.query;
-        const data = await model.filterClients({ status, skin });
+        const { status, skin, birthMonth } = req.query;
+        const data = await model.filterClients({ status, skin, birthMonth });
         res.send(data);
     } catch (err) {
         console.error("Error in filterClients:", err);

@@ -36,7 +36,7 @@ export default function Clients({ userData }) {
     const clientsPerPage = 8;
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
-    const [filters, setFilters] = useState({ status: '', skin: '' });
+    const [filters, setFilters] = useState({ status: '', skin: '', birthMonth: '' });
 
     const navigate = useNavigate();
     const loaderRef = useRef(null);
@@ -171,28 +171,28 @@ export default function Clients({ userData }) {
     }, []);
 
     useEffect(() => {
-    const handleFilteredClients = (e) => {
-        const filtered = e.detail || [];
+        const handleFilteredClients = (e) => {
+            const filtered = e.detail;
 
-        if (filters.status === '' && filters.skin === '') {
-            // חזרה ל'הצג הכל' → נאתחל את הטעינה הרגילה
-            setClients([]);
-            setPage(1);
-            setHasMore(true);
-            setSearchTerm('');
-            isFirstLoadRef.current = true; // הפעל מחדש את הטעינה הראשונית
-        } else {
-            setClients(filtered);
-            setHasMore(false); // כי בסינון קיבלנו את כל מה שיש
-            setSearchTerm('');
-        }
-    };
+            if (!filtered) {
+                setClients([]);
+                setPage(1);
+                setHasMore(true);
+                setSearchTerm('');
+                isFirstLoadRef.current = true;
+            } else {
+                setClients(filtered);
+                setHasMore(false);
+                setSearchTerm('');
+            }
+        };
 
-    window.addEventListener('filteredClients', handleFilteredClients);
-    return () => {
-        window.removeEventListener('filteredClients', handleFilteredClients);
-    };
-}, [filters]);
+
+        window.addEventListener('filteredClients', handleFilteredClients);
+        return () => {
+            window.removeEventListener('filteredClients', handleFilteredClients);
+        };
+    }, [filters]);
 
 
 

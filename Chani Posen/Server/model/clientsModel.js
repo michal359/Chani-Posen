@@ -85,7 +85,7 @@ async function searchClientsByName(searchTerm) {
     }
 }
 
-async function filterClients({ status, skin }) {
+async function filterClients({ status, skin, birthMonth }) {
     try {
         const filters = [];
         const values = [];
@@ -98,6 +98,11 @@ async function filterClients({ status, skin }) {
         if (skin) {
             filters.push("c.skin_type = ?");
             values.push(skin);
+        }
+
+        if (birthMonth) {
+            filters.push("MONTH(u.birth_date) = ?");
+            values.push(Number(birthMonth));
         }
 
         const whereClause = `WHERE u.role_id = 2${filters.length ? ' AND ' + filters.join(' AND ') : ''}`;

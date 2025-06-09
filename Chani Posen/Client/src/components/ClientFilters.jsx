@@ -14,10 +14,10 @@ export default function ClientFilters({ filters, setFilters, onClose }) {
             const query = new URLSearchParams();
             if (filters.status) query.append('status', filters.status);
             if (filters.skin) query.append('skin', filters.skin);
+            if (filters.birthMonth) query.append('birthMonth', filters.birthMonth);
 
             const response = await serverRequests('GET', `clients?${query.toString()}`);
             const data = await response.json();
-            // צריך לעדכן את ה־clients בדף הראשי דרך props או context
             const event = new CustomEvent('filteredClients', { detail: data.clients });
             window.dispatchEvent(event);
             onClose();
@@ -89,6 +89,23 @@ export default function ClientFilters({ filters, setFilters, onClose }) {
                         <MenuItem value="מעורב">מעורב</MenuItem>
                     </Select>
                 </FormControl>
+                
+                <FormControl fullWidth sx={{ mb: 2 }} disabled={loading}>
+                    <InputLabel>חודש יום הולדת</InputLabel>
+                    <Select
+                        value={filters.birthMonth || ''}
+                        label="חודש יום הולדת"
+                        onChange={(e) => setFilters(prev => ({ ...prev, birthMonth: e.target.value }))}
+                    >
+                        <MenuItem value="">הצג הכל</MenuItem>
+                        {[
+                            "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+                            "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
+                        ].map((monthName, index) => (
+                            <MenuItem key={index + 1} value={index + 1}>{monthName}</MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
 
                 <Box
                     sx={{
@@ -103,11 +120,11 @@ export default function ClientFilters({ filters, setFilters, onClose }) {
                         fullWidth
                         onClick={() => {
                             setFilters({});
-                            // שלח אירוע שמחזיר לרשימת כל הלקוחות
-                            const event = new CustomEvent('filteredClients', { detail: [] });
+                            const event = new CustomEvent('filteredClients', { detail: null });
                             window.dispatchEvent(event);
                             onClose();
                         }}
+
                         disabled={loading}
                         sx={{
                             color: '#666',

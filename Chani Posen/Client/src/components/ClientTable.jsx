@@ -41,7 +41,7 @@ export default function ClientTable({ clients, onRowClick }) {
                             <TableCell align="right">{`${client.first_name} ${client.last_name}`}</TableCell>
                             <TableCell align="right">{client.email}</TableCell>
                             <TableCell align="right">{client.phone}</TableCell>
-                            <TableCell align="right">{calculateAge(client.birth_date)}</TableCell>
+                            <TableCell align="right">{calculateAge(client.birth_date)} {client.birth_date}</TableCell>
                             <TableCell align="right">
                                 <Chip
                                     label={client.treatment_status || 'לא זמין'}

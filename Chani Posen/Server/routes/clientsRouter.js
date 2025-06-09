@@ -8,11 +8,11 @@ const authorizeAdmin = require("../middleware/authorizeAdmin")
 
 router.get("/", authorizeAdmin, async (req, res) => {
     try {
-        const { search, page = 1, limit = 10, status, skin } = req.query;
+        const { search, page = 1, limit = 10, status, skin, birthMonth } = req.query;
 
         if (search && search.trim() !== "") {
             await controller.searchClientsByName(req, res);
-        } else if (status || skin) {
+        } else if (status || skin || birthMonth) {
             await controller.filterClients(req, res);
         } else {
             await controller.getAllClients(req, res);
