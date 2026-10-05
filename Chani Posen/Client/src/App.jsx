@@ -22,6 +22,7 @@ import Accounts from './pages/Accounts'
 import Schedule from './pages/Schedule'
 import VerifyAccount from './pages/VerifyAccount'
 import AdminProfile from './components/AdminProfile'
+import AiAssistant from './pages/AiAssistant'
 
 import { serverRequests } from './Api'
 
@@ -87,6 +88,7 @@ function App() {
           <Route path="/admin-home" element={<HomeLayout setUserData={setUserData} userData={userData} role={1} />} >
             <Route index element={<AdminHome userData={userData} />} />
             <Route path="clients" element={<Clients userData={userData} />} />
+            <Route path="ai-assistant" element={<AiAssistant />}/>
             <Route path="clients/:clientId/*" element={<ClientDetails userData={userData} />}>
               <Route path="personal" element={<ClientPersonalDetails />} />
               <Route path="treatments" element={<ClientTreatments />} />

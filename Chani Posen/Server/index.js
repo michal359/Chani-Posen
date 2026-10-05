@@ -3,7 +3,11 @@ const cors = require('cors');
 const session = require('express-session');
 require('dotenv').config();
 const cookieParser = require('cookie-parser');
-const path = require('path');
+const path = require("path");
+
+require("dotenv").config({
+  path: path.resolve(__dirname, "../.env")
+});
 
 const app = express();
 app.use(express.json());
@@ -28,7 +32,7 @@ app.use(session({
   cookie: { secure: false } 
 }));
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 3000;
 
 const usersRouter = require('./routes/usersRouter');
 app.use("/users", usersRouter);
@@ -66,7 +70,8 @@ app.use("/images", imagesRouter);
 const notificationsRouter = require('./routes/notificationsRouter');
 app.use("/notifications", notificationsRouter);
 
-
+const aiRouter = require('./routes/aiRouter');
+app.use("/ai", aiRouter);
 
 // ראוטרים שאני אצטרך בעתיד
 

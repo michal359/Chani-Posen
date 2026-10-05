@@ -15,6 +15,7 @@ import NotificationsIcon from "@mui/icons-material/Notifications";
 import AccountCircle from "@mui/icons-material/AccountCircle";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import { usePollingData } from '../hooks/usePollingData';
+import SmartToyIcon from "@mui/icons-material/SmartToy";
 
 
 export default function AdminHeader({ setUserData, userData }) {
@@ -26,13 +27,13 @@ export default function AdminHeader({ setUserData, userData }) {
     extractData: (res) => res.count,
     enabled: !!userData?.user_id
   });
-  
+
   const clientCount = usePollingData({
     url: 'clients/count',
     extractData: (res) => res.totalClients,
     enabled: !!userData?.user_id
   });
-  
+
   const productsCount = usePollingData({
     url: 'products/count',
     extractData: (res) => res.totalProducts,
@@ -55,18 +56,44 @@ export default function AdminHeader({ setUserData, userData }) {
     if (count > 10) return "#FF7F7F"; // אדום בהיר
     return "transparent";
   };
-  
+
 
   const menuItems = [
-    { icon: <HomeIcon />, text: "דף הבית", page: "admin-home", tooltip: "מעבר לדף הבית" },
+    {
+      icon: <HomeIcon />,
+      text: "דף הבית",
+      page: "admin-home",
+      tooltip: "מעבר לדף הבית"
+    },
+
     {
       icon: <PeopleIcon />,
       text: "לקוחות",
       page: "admin-home/clients",
       tooltip: "ניהול לקוחות"
     },
-    { icon: <ShoppingBagIcon />, text: "מוצרים", page: "admin-home/products", tooltip: "ניהול מוצרים" },
-    { icon: <PostAddIcon />, text: "פוסטים", page: "admin-home/posts", tooltip: "יצירה וניהול פוסטים" },
+
+    {
+      icon: <SmartToyIcon />,
+      text: "עוזר AI",
+      page: "admin-home/ai-assistant",
+      tooltip: "עוזר חכם לניהול הקליניקה"
+    },
+
+    {
+      icon: <ShoppingBagIcon />,
+      text: "מוצרים",
+      page: "admin-home/products",
+      tooltip: "ניהול מוצרים"
+    },
+
+    {
+      icon: <PostAddIcon />,
+      text: "פוסטים",
+      page: "admin-home/posts",
+      tooltip: "יצירה וניהול פוסטים"
+    },
+
     {
       icon: <NotificationsIcon />,
       text: "התראות",
