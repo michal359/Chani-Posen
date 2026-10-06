@@ -8,7 +8,8 @@ import {
     IconButton,
     CircularProgress,
     Avatar,
-    Chip
+    Chip,
+    Button
 } from "@mui/material";
 
 import SendIcon from "@mui/icons-material/Send";
@@ -29,6 +30,12 @@ export default function AiAssistant() {
         }
     ]);
 
+    const [conversations, setConversations] = useState([]);
+
+    const [conversationId, setConversationId] = useState(
+        () => crypto.randomUUID()
+    );
+
     const messagesEndRef = useRef(null);
 
 
@@ -37,6 +44,74 @@ export default function AiAssistant() {
             behavior: "smooth"
         });
     }, [messages, loading]);
+
+    useEffect(() => {
+        loadConversations();
+    }, []);
+
+    const loadConversations = () => {
+        serverRequests(
+            "GET",
+            "ai/conversations"
+        )
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "ok") {
+                    setConversations(data.conversations);
+                }
+            })
+            .catch(error => {
+                console.error(
+                    "Failed loading conversations:",
+                    error
+                );
+            });
+    };
+
+    const openConversation = (conversation) => {
+        serverRequests(
+            "GET",
+            `ai/conversations/${conversation.conversation_id}/messages`
+        )
+            .then(response => response.json())
+            .then(data => {
+                if (data.status !== "ok") {
+                    return;
+                }
+
+                setConversationId(
+                    conversation.conversation_id
+                );
+
+                const loadedMessages = data.messages.map(
+                    message => ({
+                        role: message.role,
+                        text: message.message_text
+                    })
+                );
+
+                setMessages(loadedMessages);
+            })
+            .catch(error => {
+                console.error(
+                    "Failed opening conversation:",
+                    error
+                );
+            });
+    };
+
+    const startNewConversation = () => {
+        setConversationId(
+            crypto.randomUUID()
+        );
+
+        setMessages([
+            {
+                role: "assistant",
+                text: "שלום! איך אפשר לעזור?"
+            }
+        ]);
+    };
 
 
     const sendQuestion = (customQuestion = null) => {
@@ -63,7 +138,8 @@ export default function AiAssistant() {
             "POST",
             url,
             {
-                question: text
+                question: text,
+                conversation_id: conversationId
             }
         )
             .then(response => {
@@ -93,6 +169,9 @@ export default function AiAssistant() {
                         text: data.answer
                     }
                 ]);
+
+                // Refresh conversation list
+                loadConversations();
             })
             .catch(error => {
 
@@ -111,6 +190,7 @@ export default function AiAssistant() {
             });
     };
 
+
     const handleKeyDown = (event) => {
 
         if (
@@ -128,7 +208,7 @@ export default function AiAssistant() {
         <Box
             sx={{
                 direction: "rtl",
-                maxWidth: "950px",
+                maxWidth: "1250px",
                 mx: "auto",
                 px: 3,
                 py: 2
@@ -173,230 +253,401 @@ export default function AiAssistant() {
             </Box>
 
 
-            <Paper
-                elevation={2}
+            {/* אזור ראשי: היסטוריה + צ'אט */}
+            <Box
                 sx={{
-                    height: "68vh",
-                    minHeight: 500,
                     display: "flex",
-                    flexDirection: "column",
-                    overflow: "hidden",
-                    borderRadius: 3
+                    gap: 2,
+                    direction: "ltr"
                 }}
             >
 
-                {/* אזור ההודעות */}
-                <Box
+                {/* ========================================= */}
+                {/* היסטוריית שיחות - צד שמאל */}
+                {/* ========================================= */}
+
+                <Paper
+                    elevation={1}
                     sx={{
-                        flex: 1,
-                        overflowY: "auto",
-                        p: 3,
-                        backgroundColor: "#f7f7f7"
+                        width: 260,
+                        height: "68vh",
+                        minHeight: 500,
+                        flexShrink: 0,
+                        borderRadius: 3,
+                        overflow: "hidden",
+                        display: "flex",
+                        flexDirection: "column",
+                        direction: "rtl"
                     }}
                 >
 
-                    {messages.map((message, index) => (
+                    {/* כותרת היסטוריה */}
+                    <Box
+                        sx={{
+                            p: 2,
+                            borderBottom: "1px solid #e0e0e0"
+                        }}
+                    >
 
-                        <Box
-                            key={index}
+                        <Button
+                            fullWidth
+                            variant="contained"
+                            onClick={startNewConversation}
                             sx={{
-                                display: "flex",
-                                justifyContent:
-                                    message.role === "user"
-                                        ? "flex-start"
-                                        : "flex-end",
-                                mb: 2
+                                mb: 2,
+                                borderRadius: 2
                             }}
                         >
-
-                            <Box
-                                sx={{
-                                    display: "flex",
-                                    gap: 1,
-                                    maxWidth: "80%",
-                                    alignItems: "flex-start",
-                                    flexDirection:
-                                        message.role === "user"
-                                            ? "row"
-                                            : "row-reverse"
-                                }}
-                            >
-
-                                <Avatar
-                                    sx={{
-                                        width: 34,
-                                        height: 34
-                                    }}
-                                >
-                                    {
-                                        message.role === "user"
-                                            ? <PersonIcon />
-                                            : <SmartToyIcon />
-                                    }
-                                </Avatar>
-
-                                <Paper
-                                    elevation={1}
-                                    sx={{
-                                        p: 2,
-                                        borderRadius: 3,
-                                        backgroundColor:
-                                            message.role === "user"
-                                                ? "#e7e7e7"
-                                                : "#ffffff"
-                                    }}
-                                >
-
-                                    <Box
-                                        sx={{
-                                            lineHeight: 1.8,
-                                            "& p": {
-                                                margin: 0
-                                            },
-                                            "& ul": {
-                                                margin: "8px 0",
-                                                paddingRight: "20px"
-                                            },
-                                            "& ol": {
-                                                margin: "8px 0",
-                                                paddingRight: "20px"
-                                            }
-                                        }}
-                                    >
-                                        <ReactMarkdown>
-                                            {message.text}
-                                        </ReactMarkdown>
-                                    </Box>
-
-                                </Paper>
-
-                            </Box>
-
-                        </Box>
-
-                    ))}
+                            + שיחה חדשה
+                        </Button>
 
 
-                    {loading && (
-
-                        <Box
-                            sx={{
-                                display: "flex",
-                                justifyContent: "flex-end",
-                                alignItems: "center",
-                                gap: 1,
-                                mt: 1
-                            }}
+                        <Typography
+                            variant="subtitle2"
+                            fontWeight="bold"
+                            color="text.secondary"
                         >
-                            <CircularProgress size={20} />
+                            שיחות קודמות
+                        </Typography>
+
+                    </Box>
+
+
+                    {/* רשימת שיחות */}
+                    <Box
+                        sx={{
+                            flex: 1,
+                            overflowY: "auto",
+                            p: 1
+                        }}
+                    >
+
+                        {conversations.length === 0 && (
 
                             <Typography
                                 variant="body2"
                                 color="text.secondary"
+                                sx={{
+                                    textAlign: "center",
+                                    mt: 3
+                                }}
                             >
-                                בודק את הנתונים...
+                                עדיין אין שיחות קודמות
                             </Typography>
+
+                        )}
+
+
+                        {conversations.map(conversation => (
+
+                            <Box
+                                key={conversation.conversation_id}
+                                onClick={() =>
+                                    openConversation(conversation)
+                                }
+                                sx={{
+                                    p: 1.5,
+                                    mb: 0.5,
+                                    borderRadius: 2,
+                                    cursor: "pointer",
+
+                                    backgroundColor:
+                                        conversation.conversation_id ===
+                                            conversationId
+                                            ? "#eeeeee"
+                                            : "transparent",
+
+                                    "&:hover": {
+                                        backgroundColor: "#f3f3f3"
+                                    }
+                                }}
+                            >
+
+                                <Typography
+                                    variant="body2"
+                                    fontWeight={
+                                        conversation.conversation_id ===
+                                            conversationId
+                                            ? "bold"
+                                            : "normal"
+                                    }
+                                    noWrap
+                                >
+                                    {conversation.title}
+                                </Typography>
+
+
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                >
+                                    {new Date(
+                                        conversation.updated_at
+                                    ).toLocaleDateString("he-IL")}
+                                </Typography>
+
+                            </Box>
+
+                        ))}
+
+                    </Box>
+
+                </Paper>
+
+
+                {/* ========================================= */}
+                {/* הצ'אט */}
+                {/* ========================================= */}
+
+                <Paper
+                    elevation={2}
+                    sx={{
+                        flex: 1,
+                        minWidth: 0,
+                        height: "68vh",
+                        minHeight: 500,
+                        display: "flex",
+                        flexDirection: "column",
+                        overflow: "hidden",
+                        borderRadius: 3,
+                        direction: "rtl"
+                    }}
+                >
+
+                    {/* אזור ההודעות */}
+                    <Box
+                        sx={{
+                            flex: 1,
+                            overflowY: "auto",
+                            p: 3,
+                            backgroundColor: "#f7f7f7"
+                        }}
+                    >
+
+                        {messages.map((message, index) => (
+
+                            <Box
+                                key={index}
+                                sx={{
+                                    display: "flex",
+                                    justifyContent:
+                                        message.role === "user"
+                                            ? "flex-start"
+                                            : "flex-end",
+                                    mb: 2
+                                }}
+                            >
+
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        gap: 1,
+                                        maxWidth: "80%",
+                                        alignItems: "flex-start",
+
+                                        flexDirection:
+                                            message.role === "user"
+                                                ? "row"
+                                                : "row-reverse"
+                                    }}
+                                >
+
+                                    <Avatar
+                                        sx={{
+                                            width: 34,
+                                            height: 34
+                                        }}
+                                    >
+                                        {
+                                            message.role === "user"
+                                                ? <PersonIcon />
+                                                : <SmartToyIcon />
+                                        }
+                                    </Avatar>
+
+
+                                    <Paper
+                                        elevation={1}
+                                        sx={{
+                                            p: 2,
+                                            borderRadius: 3,
+
+                                            backgroundColor:
+                                                message.role === "user"
+                                                    ? "#e7e7e7"
+                                                    : "#ffffff"
+                                        }}
+                                    >
+
+                                        <Box
+                                            sx={{
+                                                lineHeight: 1.8,
+
+                                                "& p": {
+                                                    margin: 0
+                                                },
+
+                                                "& ul": {
+                                                    margin: "8px 0",
+                                                    paddingRight: "20px"
+                                                },
+
+                                                "& ol": {
+                                                    margin: "8px 0",
+                                                    paddingRight: "20px"
+                                                }
+                                            }}
+                                        >
+
+                                            <ReactMarkdown>
+                                                {message.text}
+                                            </ReactMarkdown>
+
+                                        </Box>
+
+                                    </Paper>
+
+                                </Box>
+
+                            </Box>
+
+                        ))}
+
+
+                        {/* טעינה */}
+                        {loading && (
+
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    justifyContent: "flex-end",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    mt: 1
+                                }}
+                            >
+
+                                <CircularProgress size={20} />
+
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                >
+                                    בודק את הנתונים...
+                                </Typography>
+
+                            </Box>
+
+                        )}
+
+
+                        <div ref={messagesEndRef} />
+
+                    </Box>
+
+
+                    {/* ========================================= */}
+                    {/* הצעות לשאלות */}
+                    {/* ========================================= */}
+
+                    {messages.length === 1 && (
+
+                        <Box
+                            sx={{
+                                px: 2,
+                                pt: 1,
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: 1,
+                                backgroundColor: "#fff"
+                            }}
+                        >
+
+                            <Chip
+                                label="מה הטיפול האחרון של שרה לוי?"
+                                onClick={() =>
+                                    sendQuestion(
+                                        "מה הטיפול האחרון של שרה לוי?"
+                                    )
+                                }
+                                clickable
+                            />
+
+                            <Chip
+                                label="אילו מוצרים הומלצו לשרה לוי?"
+                                onClick={() =>
+                                    sendQuestion(
+                                        "אילו מוצרים הומלצו לשרה לוי?"
+                                    )
+                                }
+                                clickable
+                            />
+
+                            <Chip
+                                label="האם יש לשרה לוי דברים שלא שולמו?"
+                                onClick={() =>
+                                    sendQuestion(
+                                        "האם יש לשרה לוי טיפולים או רכישות שלא שולמו?"
+                                    )
+                                }
+                                clickable
+                            />
+
                         </Box>
 
                     )}
 
 
-                    <div ref={messagesEndRef} />
-
-                </Box>
-
-
-                {/* הצעות לשאלות */}
-                {messages.length === 1 && (
+                    {/* ========================================= */}
+                    {/* שורת כתיבה */}
+                    {/* ========================================= */}
 
                     <Box
                         sx={{
-                            px: 2,
-                            pt: 1,
+                            p: 2,
                             display: "flex",
-                            flexWrap: "wrap",
                             gap: 1,
-                            backgroundColor: "#fff"
+                            alignItems: "flex-end",
+                            backgroundColor: "#fff",
+                            borderTop: "1px solid #ddd"
                         }}
                     >
 
-                        <Chip
-                            label="מה הטיפול האחרון של שרה לוי?"
-                            onClick={() =>
-                                sendQuestion(
-                                    "מה הטיפול האחרון של שרה לוי?"
-                                )
+                        <TextField
+                            fullWidth
+                            multiline
+                            maxRows={4}
+                            value={question}
+                            disabled={loading}
+                            onChange={(event) =>
+                                setQuestion(event.target.value)
                             }
-                            clickable
+                            onKeyDown={handleKeyDown}
+                            placeholder="שאל אותי משהו על לקוח..."
                         />
 
-                        <Chip
-                            label="אילו מוצרים הומלצו לשרה לוי?"
-                            onClick={() =>
-                                sendQuestion(
-                                    "אילו מוצרים הומלצו לשרה לוי?"
-                                )
-                            }
-                            clickable
-                        />
 
-                        <Chip
-                            label="האם יש לשרה לוי דברים שלא שולמו?"
-                            onClick={() =>
-                                sendQuestion(
-                                    "האם יש לשרה לוי טיפולים או רכישות שלא שולמו?"
-                                )
+                        <IconButton
+                            onClick={() => sendQuestion()}
+                            disabled={
+                                loading ||
+                                !question.trim()
                             }
-                            clickable
-                        />
+                            sx={{
+                                width: 48,
+                                height: 48
+                            }}
+                        >
+
+                            <SendIcon />
+
+                        </IconButton>
 
                     </Box>
 
-                )}
+                </Paper>
 
-
-                {/* שורת כתיבה */}
-                <Box
-                    sx={{
-                        p: 2,
-                        display: "flex",
-                        gap: 1,
-                        alignItems: "flex-end",
-                        backgroundColor: "#fff",
-                        borderTop: "1px solid #ddd"
-                    }}
-                >
-
-                    <TextField
-                        fullWidth
-                        multiline
-                        maxRows={4}
-                        value={question}
-                        disabled={loading}
-                        onChange={(event) =>
-                            setQuestion(event.target.value)
-                        }
-                        onKeyDown={handleKeyDown}
-                        placeholder="שאל אותי משהו על לקוח..."
-                    />
-
-                    <IconButton
-                        onClick={() => sendQuestion()}
-                        disabled={
-                            loading ||
-                            !question.trim()
-                        }
-                        sx={{
-                            width: 48,
-                            height: 48
-                        }}
-                    >
-                        <SendIcon />
-                    </IconButton>
-
-                </Box>
-
-            </Paper>
+            </Box>
 
         </Box>
     );

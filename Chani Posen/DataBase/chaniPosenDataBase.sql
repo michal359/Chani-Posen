@@ -54,6 +54,34 @@ CREATE TABLE admins (
         ON DELETE CASCADE
 );
 
+CREATE TABLE ai_conversations (
+    conversation_id CHAR(36) PRIMARY KEY,
+    admin_id INT NOT NULL,
+    title VARCHAR(255) DEFAULT 'שיחה חדשה',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (admin_id)
+        REFERENCES admins(admin_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+
+
+CREATE TABLE ai_messages (
+    message_id INT AUTO_INCREMENT PRIMARY KEY,
+    conversation_id CHAR(36) NOT NULL,
+    role ENUM('user', 'assistant') NOT NULL,
+    message_text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (conversation_id)
+        REFERENCES ai_conversations(conversation_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+
 CREATE TABLE products (
     product_id INT AUTO_INCREMENT PRIMARY KEY,
     product_name VARCHAR(255) NOT NULL,               

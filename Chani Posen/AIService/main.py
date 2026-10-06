@@ -49,8 +49,14 @@ class ClientData(BaseModel):
     skin_type: Optional[str] = None
     is_verified: Optional[bool] = None
 
+class HistoryMessage(BaseModel):
+    role: str
+    text: str
+
 class AgentRequest(BaseModel):
     question: str
+    conversation_id: str
+    history: Optional[List[HistoryMessage]] = None
 
 class TreatmentData(BaseModel):
     treatment_id: int
@@ -190,6 +196,145 @@ def get_recommendations(client_id: int) -> dict:
 
     response.raise_for_status()
 
+    return response.json()
+
+def build_gemini_history(messages):
+    normalized = []
+
+    for message in messages or []:
+
+        if message.role == "user":
+            role = "user"
+
+        elif message.role == "assistant":
+            role = "model"
+
+        else:
+            continue
+
+        if not normalized and role != "user":
+            continue
+
+        if (
+            normalized and
+            normalized[-1]["role"] == role
+        ):
+            normalized[-1]["text"] += (
+                "\n" + message.text
+            )
+
+        else:
+            normalized.append({
+                "role": role,
+                "text": message.text
+            })
+
+    return [
+        types.Content(
+            role=message["role"],
+            parts=[
+                types.Part(
+                    text=message["text"]
+                )
+            ]
+        )
+        for message in normalized
+    ]
+
+def get_clinic_overview() -> dict:
+    """
+    Returns a general overview of the clinic,
+    including number of clients and unpaid items.
+    """
+    print("🔧 TOOL CALLED: get_clinic_overview()")
+
+    response = requests.get(
+        "http://127.0.0.1:3000/ai/tools/clinic/overview",
+        timeout=5
+    )
+
+    response.raise_for_status()
+    return response.json()
+
+
+def get_birthdays(month: Optional[int] = None) -> dict:
+    """
+    Returns clients whose birthday is in a given month.
+    If no month is provided, returns birthdays
+    for the current month.
+    """
+    print(
+        f"🔧 TOOL CALLED: get_birthdays({month})"
+    )
+
+    params = {}
+
+    if month is not None:
+        params["month"] = month
+
+    response = requests.get(
+        "http://127.0.0.1:3000/ai/tools/clients/birthdays",
+        params=params,
+        timeout=5
+    )
+
+    response.raise_for_status()
+    return response.json()
+
+
+def get_unpaid_products() -> dict:
+    """
+    Returns unpaid product purchases and their total value.
+    """
+    print("🔧 TOOL CALLED: get_unpaid_products()")
+
+    response = requests.get(
+        "http://127.0.0.1:3000/ai/tools/finance/unpaid-products",
+        timeout=5
+    )
+
+    response.raise_for_status()
+    return response.json()
+
+
+def get_client_financial_summary(client_id: int) -> dict:
+    """
+    Returns paid revenue and unpaid amounts
+    for a specific client.
+    """
+    print(
+        f"🔧 TOOL CALLED: "
+        f"get_client_financial_summary({client_id})"
+    )
+
+    response = requests.get(
+        f"http://127.0.0.1:3000/ai/tools/client/"
+        f"{client_id}/financial-summary",
+        timeout=5
+    )
+
+    response.raise_for_status()
+    return response.json()
+
+
+def get_client_contact(client_id: int) -> dict:
+    """
+    Returns contact information for a specific client,
+    including phone, email and birth date.
+    Use only when contact or personal information
+    is actually relevant to the user's request.
+    """
+    print(
+        f"🔧 TOOL CALLED: get_client_contact({client_id})"
+    )
+
+    response = requests.get(
+        f"http://127.0.0.1:3000/ai/tools/client/"
+        f"{client_id}/contact",
+        timeout=5
+    )
+
+    response.raise_for_status()
     return response.json()
 
 
@@ -359,35 +504,85 @@ Respond in Hebrew.
 @app.post("/agent")
 def agent(request: AgentRequest):
     try:
+        # Build the conversation history from MySQL data
+        gemini_history = build_gemini_history(
+            request.history
+        )
+
+        print(
+            f"📚 HISTORY LOADED: "
+            f"{len(gemini_history)} messages "
+            f"for {request.conversation_id}"
+        )
+        current_date = date.today().isoformat()
+
         config = types.GenerateContentConfig(
             tools=[
-                get_client,
                 search_client,
+                get_client,
                 get_treatments,
                 get_purchases,
-                get_recommendations
+                get_recommendations,
+                get_clinic_overview,
+                get_birthdays,
+                get_unpaid_products,
+                get_client_financial_summary,
+                get_client_contact
             ],
+
+            system_instruction=f"""
+You are an AI assistant inside a clinic management system.
+
+Today's date is {current_date}.
+
+Important rules:
+
+- Always use today's date above for age calculations, birthdays,
+  relative dates and time periods.
+- Always use the previous conversation history to understand context.
+- If the user says "היא", "הוא", "אותה", "שלה", "לקוחה זו"
+  or similar references, understand them as referring to the most
+  recently discussed client when the context is clear.
+- Do not ask for the client's name again when it is already clear
+  from the conversation history.
+- Use the available tools whenever factual database information is required.
+- Before saying information is unavailable, check whether one or more tools
+  can answer the question.
+- Never invent client information.
+- Answer in Hebrew.
+- Do not expose internal client IDs unless explicitly requested.
+- If there are multiple possible clients and the context is truly ambiguous,
+  ask the user to clarify.
+""",
+
             thinking_config=types.ThinkingConfig(
                 thinking_level="minimal"
             )
         )
 
+        # Create a chat using the history from the database
         chat = gemini_client.chats.create(
             model=GEMINI_MODEL,
-            config=config
+            config=config,
+            history=gemini_history
         )
 
+        # Send only the new question
         response = chat.send_message(
             request.question
         )
 
         return {
             "status": "ok",
+            "conversation_id": request.conversation_id,
             "answer": response.text
         }
 
     except Exception as e:
-        print("AGENT ERROR:", repr(e))
+        print(
+            "AGENT ERROR:",
+            repr(e)
+        )
 
         return {
             "status": "error",
