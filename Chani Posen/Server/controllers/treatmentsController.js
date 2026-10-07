@@ -2,42 +2,73 @@ const model = require('../model/treatmentsModel');
 
 async function getTreatmentsByClientId(id) {
     try {
-        return model.getTreatmentsByClientId(id);
-    }
-    catch (err) {
+        return await model.getTreatmentsByClientId(id);
+    } catch (err) {
+        console.error(
+            "Error in getTreatmentsByClientId controller:",
+            err
+        );
         throw err;
     }
-};
+}
 
 async function deleteTreatment(id) {
     try {
-        console.log('delete treatment controller');
-        return model.deleteTreatment(id);
-    }
-    catch (err) {
+        console.log(
+            "Deleting treatment in controller. ID:",
+            id
+        );
+
+        return await model.deleteTreatment(id);
+
+    } catch (err) {
+        console.error(
+            "Error in deleteTreatment controller:",
+            err
+        );
         throw err;
     }
-};
+}
 
 async function updateTreatment(body, id) {
     try {
-        return model.updateTreatment(body, id);
-    }
-    catch (err) {
+        console.log(
+            "Updating treatment in controller. ID:",
+            id
+        );
+
+        return await model.updateTreatment(body, id);
+
+    } catch (err) {
+        console.error(
+            "Error in updateTreatment controller:",
+            err
+        );
         throw err;
     }
-};
+}
 
 async function createTreatment(body) {
     try {
-        console.log("controller body:", body);  
-        console.log(JSON.stringify(body, null, 2)); 
-        return model.createTreatment(body);
-    }
-    catch (err) {
+        console.log(
+            "Creating treatment in controller:",
+            body
+        );
+
+        return await model.createTreatment(body);
+
+    } catch (err) {
+        console.error(
+            "Error in createTreatment controller:",
+            err
+        );
         throw err;
     }
+}
+
+module.exports = {
+    getTreatmentsByClientId,
+    deleteTreatment,
+    updateTreatment,
+    createTreatment
 };
-
-
-module.exports = { getTreatmentsByClientId, deleteTreatment, updateTreatment, createTreatment }

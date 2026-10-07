@@ -46,6 +46,9 @@ app.use("/clients", clientsRouter);
 const treatmentsRouter = require('./routes/treatmentsRouter');
 app.use("/treatments", treatmentsRouter);
 
+const treatmentTypesRouter = require("./routes/treatmentTypesRouter");
+app.use("/treatment-types", treatmentTypesRouter);
+
 const productsRouter = require('./routes/productsRouter');
 app.use("/products", productsRouter);
 
@@ -72,6 +75,7 @@ app.use("/notifications", notificationsRouter);
 
 const aiRouter = require('./routes/aiRouter');
 app.use("/ai", aiRouter);
+
 
 // ראוטרים שאני אצטרך בעתיד
 
