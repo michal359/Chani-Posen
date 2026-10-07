@@ -84,10 +84,10 @@ CREATE TABLE ai_messages (
 
 CREATE TABLE products (
     product_id INT AUTO_INCREMENT PRIMARY KEY,
-    product_name VARCHAR(255) NOT NULL,               
-    product_description TEXT,                          
-    product_price DECIMAL(10, 2) NOT NULL,             
-    purchase_count INT DEFAULT 0  
+    product_name VARCHAR(255) NOT NULL,
+    product_description TEXT,
+    product_price DECIMAL(10,2) NOT NULL,
+    purchase_count INT DEFAULT 0
 );
 
 CREATE TABLE recommendations (
@@ -104,30 +104,81 @@ CREATE TABLE recommendations (
 );
 
 CREATE TABLE purchases (
-    purchase_id INT AUTO_INCREMENT PRIMARY KEY, 
-    client_id INT NOT NULL,                      
-    product_id INT NOT NULL,                    
-    purchase_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    status ENUM('Paid', 'Unpaid') DEFAULT 'Unpaid',
-    FOREIGN KEY (client_id) REFERENCES users (user_id) 
-        ON UPDATE CASCADE 
+    purchase_id INT AUTO_INCREMENT PRIMARY KEY,
+    client_id INT NOT NULL,
+    product_id INT NOT NULL,
+    purchase_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    purchase_price DECIMAL(10,2) NOT NULL,
+    amount_paid DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    FOREIGN KEY (client_id)
+        REFERENCES clients(client_id)
         ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products (product_id) 
-        ON UPDATE RESTRICT 
-        ON DELETE CASCADE
+    FOREIGN KEY (product_id)
+        REFERENCES products(product_id)
+);
+
+CREATE TABLE treatment_types (
+    treatment_type_id INT AUTO_INCREMENT PRIMARY KEY,
+    treatment_name VARCHAR(255) NOT NULL UNIQUE,
+    default_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    default_duration INT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE TABLE treatments (
-    treatment_id INT AUTO_INCREMENT PRIMARY KEY,    
-    client_id INT NOT NULL,                        
-    treatment_type VARCHAR(255),                     
-    treatment_date DATE NOT NULL,              
-    duration INT NOT NULL,                          
-    summary TEXT,                                   
-    status ENUM('Paid', 'Unpaid') DEFAULT 'Unpaid', 
-    amount DECIMAL(10, 2) DEFAULT 0.00,                          
-    FOREIGN KEY (client_id) REFERENCES users (user_id) 
-        ON UPDATE RESTRICT 
+    treatment_id INT AUTO_INCREMENT PRIMARY KEY,
+    client_id INT NOT NULL,
+    treatment_type_id INT NOT NULL,
+    treatment_date DATETIME NOT NULL,
+    duration INT NOT NULL,
+    summary TEXT,
+    treatment_price DECIMAL(10,2) NOT NULL,
+    amount_paid DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    is_special_price BOOLEAN NOT NULL DEFAULT FALSE,
+    price_note VARCHAR(255),
+    FOREIGN KEY (client_id)
+        REFERENCES clients(client_id)
+        ON DELETE CASCADE,
+    FOREIGN KEY (treatment_type_id)
+        REFERENCES treatment_types(treatment_type_id)
+);
+
+CREATE TABLE wallets (
+    client_id INT PRIMARY KEY,
+    credit_balance DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    FOREIGN KEY (client_id)
+        REFERENCES clients(client_id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    client_id INT NOT NULL,
+    payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    payment_source ENUM(
+        'DIRECT',
+        'WALLET'
+    ) NOT NULL,
+    target_type ENUM(
+        'TREATMENT',
+        'PURCHASE',
+        'WALLET_CREDIT'
+    ) NOT NULL,
+    treatment_id INT DEFAULT NULL,
+    purchase_id INT DEFAULT NULL,
+    amount_received DECIMAL(10,2)
+        NOT NULL DEFAULT 0.00,
+    amount_applied DECIMAL(10,2)
+        NOT NULL DEFAULT 0.00,
+    note VARCHAR(500),
+    FOREIGN KEY (client_id)
+        REFERENCES clients(client_id)
+        ON DELETE CASCADE,
+    FOREIGN KEY (treatment_id)
+        REFERENCES treatments(treatment_id)
+        ON DELETE CASCADE,
+    FOREIGN KEY (purchase_id)
+        REFERENCES purchases(purchase_id)
         ON DELETE CASCADE
 );
 
@@ -246,23 +297,44 @@ VALUES
 (7, 4),
 (8, 5);
 
-INSERT INTO purchases (client_id, product_id, purchase_date, status) 
-VALUES 
-(5, 2, '2024-12-01', 'Paid'),
-(7, 4, '2024-12-03', 'Unpaid');
+INSERT INTO purchases (client_id, product_id, purchase_price, purchase_date, amount_paid)
+VALUES
+(5, 2, 120.50, '2024-12-01 12:00:00', 120.50),
+(7, 4, 95.00, '2024-12-03 12:00:00', 0.00);
 
-INSERT INTO treatments (client_id, treatment_type, treatment_date, duration, summary, status, amount) 
-VALUES 
-(4, 'בייסיק', '2024-12-01 10:00:00', 30, 'תיאור טיפול', 'Paid', 300.00),
-(5, 'יופי', '2024-12-02 14:00:00', 90, 'פילינג כימי לניקוי עור עמוק.', 'Unpaid', 0),
-(5, 'יופי', '2024-12-02 14:00:00', 90, 'תיאור טיפול', 'Unpaid', 0),
-(5, 'ספא', '2024-10-02 14:00:00', 90, 'פילינג כימי לניקוי עור עמוק.', 'Paid', 400.00),
-(5, 'ספא', '2025-01-02 14:00:00', 90, 'פילינג כימי לניקוי עור עמוק.', 'Paid', 400.00),
-(5, 'בייסיק', '2024-11-02 14:00:00', 90, 'פילינג כימי לניקוי עור עמוק.', 'Unpaid', 0),
-(5, 'אנטי איגינג', '2024-09-02 14:00:00', 90, 'פילינג כימי לניקוי עור עמוק.', 'Paid', 350.00),
-(6, 'מזותרפיה', '2024-12-03 09:00:00', 40, 'תיאור טיפול', 'Paid', 300.00),
-(7, 'פוסט אקנה', '2024-12-04 12:00:00', 60, 'תיאור טיפול', 'Unpaid', 0),
-(8, 'חלק מסדרה', '2024-12-05 11:00:00', 50, 'תיאור טיפול', 'Paid', 400.00);
+INSERT INTO treatment_types (treatment_name, default_price, default_duration)
+VALUES
+('בייסיק', 300.00, 30),
+('יופי', 450.00, 90),
+('ספא', 400.00, 90),
+('אנטי איגינג', 350.00, 90),
+('מזותרפיה', 300.00, 40),
+('פוסט אקנה', 320.00, 60),
+('חלק מסדרה', 400.00, 50);
+
+INSERT INTO treatments ( client_id, treatment_type_id, treatment_date, duration, summary, treatment_price, amount_paid, is_special_price, price_note)
+VALUES
+(4, 1, '2024-12-01 10:00:00', 30, 'תיאור טיפול', 300.00, 300.00, FALSE, NULL),
+(5, 2, '2024-12-02 14:00:00', 90, 'פילינג כימי לניקוי עור עמוק.', 450.00, 0.00, FALSE, NULL),
+(5, 2, '2024-12-02 16:00:00', 90, 'תיאור טיפול', 380.00, 200.00, TRUE, 'מחיר מיוחד ללקוחה'),
+(5, 3, '2024-10-02 14:00:00', 90, 'פילינג כימי לניקוי עור עמוק.', 400.00, 400.00, FALSE, NULL),
+(5, 3, '2025-01-02 14:00:00', 90, 'פילינג כימי לניקוי עור עמוק.', 400.00, 400.00, FALSE, NULL),
+(5, 1, '2024-11-02 14:00:00', 90, 'פילינג כימי לניקוי עור עמוק.', 300.00, 0.00, FALSE, NULL),
+(5, 4, '2024-09-02 14:00:00', 90, 'פילינג כימי לניקוי עור עמוק.', 350.00, 350.00, FALSE, NULL),
+(6, 5, '2024-12-03 09:00:00', 40, 'תיאור טיפול', 300.00, 300.00, FALSE, NULL),
+(7, 6, '2024-12-04 12:00:00', 60, 'תיאור טיפול', 320.00, 0.00, FALSE, NULL),
+(8, 7, '2024-12-05 11:00:00', 50, 'תיאור טיפול', 400.00, 400.00, FALSE, NULL);
+
+INSERT INTO payments (client_id, payment_date, payment_source, target_type, treatment_id, purchase_id, amount_received, amount_applied, note)
+VALUES
+(4, '2024-12-01 10:30:00', 'DIRECT', 'TREATMENT', 1, NULL, 300.00, 300.00, 'תשלום מלא על טיפול'),
+(5, '2024-12-02 16:30:00', 'DIRECT', 'TREATMENT', 3, NULL, 200.00, 200.00, 'תשלום חלקי'),
+(5, '2024-10-02 14:30:00', 'DIRECT', 'TREATMENT', 4, NULL, 400.00, 400.00, 'תשלום מלא'),
+(5, '2025-01-02 14:30:00', 'DIRECT', 'TREATMENT', 5, NULL, 500.00, 400.00, '400 לטיפול ו-100 נוספו ליתרת הזכות'),
+(5, '2024-09-02 14:30:00', 'DIRECT', 'TREATMENT', 7, NULL, 350.00, 350.00, 'תשלום מלא'),
+(6, '2024-12-03 09:30:00', 'DIRECT', 'TREATMENT', 8, NULL, 300.00, 300.00, 'תשלום מלא'),
+(8, '2024-12-05 11:30:00', 'DIRECT', 'TREATMENT', 10, NULL, 400.00, 400.00, 'תשלום מלא'),
+(5, '2024-12-01 12:30:00', 'DIRECT', 'PURCHASE', NULL, 1, 120.50, 120.50, 'תשלום מלא על מוצר');
 
 INSERT INTO images (user_id, image_type, image_path, description, uploaded_by) 
 VALUES 
