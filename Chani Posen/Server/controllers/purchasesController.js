@@ -36,6 +36,13 @@ async function addPurchase(body) {
     }
 };
 
+async function depositToWallet(body) {
+    try {
+        return model.depositToWallet(body);
+    }
+    catch (err) {
+        throw err;
+    }
+};
 
-
-module.exports = { getClientsPurchasesById, deletePurchase, updatePurchaseStatus, addPurchase }
+module.exports = { getClientsPurchasesById, deletePurchase, updatePurchaseStatus, addPurchase, depositToWallet }

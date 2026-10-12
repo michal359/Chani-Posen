@@ -1,235 +1,230 @@
-import React, { useState, useEffect } from "react";
+
+import React, { useState } from "react";
+
 import {
     Box,
     Button,
     Typography,
     IconButton,
-    TextField,
-    List,
-    ListItem,
-    ListItemText,
-    ListItemAvatar,
-    Avatar,
     Alert,
-    Card,
-    CardContent,
+    CircularProgress
 } from "@mui/material";
-import { serverRequests } from "../Api";
+
 import CloseIcon from "@mui/icons-material/Close";
 
-export default function AddRecommendationModal({ onClose, clientId, setRecommendations, onSuccess, onError }) {
-    const [products, setProducts] = useState([]);
-    const [filteredProducts, setFilteredProducts] = useState([]);
-    const [selectedProduct, setSelectedProduct] = useState(null);
-    const [error, setError] = useState(null);
-    const [searchTerm, setSearchTerm] = useState("");
+import { serverRequests } from "../Api";
+import ProductSelector from "./ProductSelector";
 
-    useEffect(() => {
-        serverRequests("GET", "products", null)
-            .then(response => response.json())
-            .then(data => {
-                if (data && data.products) {
-                    const sortedProducts = data.products.sort((a, b) =>
-                        a.product_name.localeCompare(b.product_name, "he")
-                    );
-                    setProducts(sortedProducts);
-                    setFilteredProducts(sortedProducts);
-                }
-            })
-            .catch(error => {
-                console.error("Error fetching products:", error);
-                setError("שגיאה בטעינת רשימת המוצרים");
-            });
-    }, []);
+export default function AddRecommendationModal({
+    onClose,
+    clientId,
+    setRecommendations,
+    onSuccess,
+    onError
+}) {
+    const [selectedProduct, setSelectedProduct] =
+        useState(null);
 
-    const handleSearch = (event) => {
-        const value = event.target.value.toLowerCase();
-        setSearchTerm(value);
-        setFilteredProducts(
-            products.filter((product) =>
-                product.product_name.toLowerCase().includes(value)
-            )
-        );
-    };
+    const [error, setError] = useState("");
+    const [saving, setSaving] = useState(false);
 
-    const handleProductSelect = (product) => {
+    // Select a product from the shared selector
+    function handleProductSelect(product) {
         setSelectedProduct(product);
-    };
+        setError("");
+    }
 
-    const handleAddRecommendation = () => {
+    // Add recommendation
+    async function handleAddRecommendation() {
         if (!selectedProduct) {
             setError("אנא בחר מוצר");
             return;
         }
 
-        const body = {
-            productId: selectedProduct.product_id,
-            clientId: clientId,
-        };
+        if (saving) return;
 
-        serverRequests("POST", "recommendations", body)
-            .then(response => {
-                return response.json();  
-            })
-            .then(data => {
-                if (data.success) {
-                    if (data.alreadyExists) {
-                        onError("המלצה על המוצר הזה כבר קיימת");
-                        return;
-                    }
-                    setRecommendations(prev => [
-                        {
-                            recommendation_id: data.recommendationId,
-                            created_at: data.createdAt,
-                            client_id: clientId,
-                            product_id: selectedProduct.product_id,
-                            product_name: selectedProduct.product_name,
-                            product_price: selectedProduct.product_price,
-                            product_description: selectedProduct.product_description || "אין תיאור",
-                            image_path: selectedProduct.image_path || "/default-product.jpg",
-                        },
-                        ...prev
-                    ]);
-                    onSuccess("ההמלצה נוספה בהצלחה!");
-                    onClose();
-                } else {
-                    console.error("Error received from server:", data.error);
-                    onError(`שגיאה: ${data.error || "הוספת ההמלצה נכשלה, נסי שוב"}`);
-                }
-            })
-            .catch(error => {
-                console.error("שגיאה בלתי צפויה בשליחת המלצה:", error);
-                onError("שגיאה בלתי צפויה");
-            });
+        setSaving(true);
+        setError("");
 
-    };
+        try {
+            const body = {
+                productId: selectedProduct.product_id,
+                clientId: clientId
+            };
+
+            const response = await serverRequests(
+                "POST",
+                "recommendations",
+                body
+            );
+
+            if (
+                !response ||
+                typeof response.json !== "function"
+            ) {
+                throw new Error(
+                    "לא ניתן להתחבר לשרת"
+                );
+            }
+
+            const data = await response.json();
+
+            // Recommendation already exists
+            if (data.alreadyExists) {
+                const message =
+                    "המלצה על המוצר הזה כבר קיימת";
+
+                setError(message);
+                onError?.(message);
+                return;
+            }
+
+            if (!response.ok || !data.success) {
+                throw new Error(
+                    data.message ||
+                    data.error ||
+                    "הוספת ההמלצה נכשלה"
+                );
+            }
+
+            // Update recommendation list
+            if (typeof setRecommendations === "function") {
+                setRecommendations((previous) => [
+                    {
+                        recommendation_id:
+                            data.recommendationId,
+
+                        created_at:
+                            data.createdAt,
+
+                        client_id: clientId,
+
+                        product_id:
+                            selectedProduct.product_id,
+
+                        product_name:
+                            selectedProduct.product_name,
+
+                        product_price:
+                            selectedProduct.product_price,
+
+                        product_description:
+                            selectedProduct.product_description ||
+                            "אין תיאור",
+
+                        image_path:
+                            selectedProduct.image_path ||
+                            "/default-product.jpg"
+                    },
+                    ...previous
+                ]);
+            }
+
+            onSuccess?.("ההמלצה נוספה בהצלחה!");
+            onClose();
+
+        } catch (err) {
+            console.error(
+                "Error adding recommendation:",
+                err
+            );
+
+            const message =
+                err.message || "שגיאה בהוספת המלצה";
+
+            setError(message);
+            onError?.(message);
+
+        } finally {
+            setSaving(false);
+        }
+    }
 
     return (
         <Box
+            dir="rtl"
             sx={{
                 position: "absolute",
                 top: "50%",
                 left: "50%",
                 transform: "translate(-50%, -50%)",
-                width: 400,
-                maxHeight: "80vh",
+
+                width: {
+                    xs: "94%",
+                    sm: 480
+                },
+
+                maxHeight: "90vh",
+                overflowY: "auto",
+
                 bgcolor: "background.paper",
                 boxShadow: 24,
-                p: 4,
-                borderRadius: "8px",
-                overflow: "auto",
+                p: 3,
+                borderRadius: 2,
+                boxSizing: "border-box"
             }}
         >
-            <IconButton
-                onClick={onClose}
+            {/* Header */}
+            <Box
                 sx={{
-                    position: "absolute",
-                    top: 10,
-                    right: 10,
-                    color: "text.primary",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    mb: 3
                 }}
             >
-                <CloseIcon />
-            </IconButton>
-            <Typography variant="h6" mb={2}>הוספת המלצה</Typography>
+                <Typography variant="h6">
+                    הוספת המלצה חדשה
+                </Typography>
 
-            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-
-            <TextField
-                fullWidth
-                label="חפש מוצר..."
-                variant="outlined"
-                value={searchTerm}
-                onChange={handleSearch}
-                sx={{ mb: 2 }}
-            />
-
-            <List sx={{ maxHeight: 200, overflow: "auto", border: "1px solid #ddd", borderRadius: "4px", p: 1 }}>
-                {filteredProducts.length > 0 ? (
-                    filteredProducts.map((product) => (
-                        <ListItem
-                            key={product.product_id}
-                            button
-                            selected={selectedProduct?.product_id === product.product_id}
-                            onClick={() => handleProductSelect(product)}
-                            sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                "&.Mui-selected": {
-                                    backgroundColor: "#1976d2",
-                                    color: "white",
-                                },
-                            }}
-                        >
-                            <ListItemAvatar>
-                                <Avatar src={product.image_path || "/default-product.jpg"} />
-                            </ListItemAvatar>
-                            <ListItemText primary={product.product_name} />
-                        </ListItem>
-                    ))
-                ) : (
-                    <Alert severity="info" sx={{ width: "100%", textAlign: "center", p: 2 }}>
-                        אין מוצרים התואמים לחיפוש
-                    </Alert>
-                )}
-            </List>
-
-            {/* מציג את המוצר שנבחר */}
-            {selectedProduct && (
-                <Card
-                    sx={{
-                        mt: 2,
-                        p: 2,
-                        display: "flex",
-                        alignItems: "center",
-                        border: "3px solid #B68FFF",
-                        backgroundColor: "#F3E8FF",
-                        borderRadius: "8px",
-                        boxShadow: "0px 4px 10px rgba(162, 86, 232, 0.3)",
-                        position: "relative",
-                    }}
+                <IconButton
+                    onClick={onClose}
+                    disabled={saving}
                 >
-                    <IconButton
-                        onClick={() => setSelectedProduct(null)}
-                        sx={{
-                            position: "absolute",
-                            top: 4,
-                            right: 4,
-                            color: "#B68FFF",
-                        }}
-                    >
-                        <CloseIcon />
-                    </IconButton>
+                    <CloseIcon />
+                </IconButton>
+            </Box>
 
-                    <Avatar
-                        src={selectedProduct.image_path || "/default-product.jpg"}
-                        sx={{ width: 80, height: 80, mr: 2, border: "2px solid #B68FFF" }}
-                    />
-                    <CardContent sx={{ flex: 1 }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: "bold", color: "#B68FFF" }}>
-                            {selectedProduct.product_name}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            ₪{selectedProduct.product_price}
-                        </Typography>
-                    </CardContent>
-                </Card>
+            {/* Error message */}
+            {error && (
+                <Alert
+                    severity="error"
+                    sx={{ mb: 2 }}
+                >
+                    {error}
+                </Alert>
             )}
 
+            {/* Shared product selection component */}
+            <ProductSelector
+                selectedProduct={selectedProduct}
+                onSelect={handleProductSelect}
+                title="בחירת מוצר להמלצה"
+            />
+
+            {/* Save button */}
             <Button
                 variant="contained"
-                color="primary"
                 fullWidth
+                disabled={!selectedProduct || saving}
                 onClick={handleAddRecommendation}
                 sx={{
-                    mt: 2,
-                    backgroundColor: '#B68FFF',
-                    color: '#fff',
-                    '&:hover': { backgroundColor: '#A256E8' },
+                    mt: 3,
+                    bgcolor: "#B68FFF",
+
+                    "&:hover": {
+                        bgcolor: "#A256E8"
+                    }
                 }}
-                disabled={!selectedProduct}
             >
-                הוסף המלצה
+                {saving ? (
+                    <CircularProgress
+                        size={22}
+                        color="inherit"
+                    />
+                ) : (
+                    "הוסף המלצה"
+                )}
             </Button>
         </Box>
     );
