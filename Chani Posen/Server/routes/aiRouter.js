@@ -1,3 +1,4 @@
+
 const express = require("express");
 const axios = require("axios");
 
@@ -7,15 +8,153 @@ const authorizeAdmin = require("../middleware/authorizeAdmin");
 
 const router = express.Router();
 
-// AI AGENT
-// Receives a question from React and sends it to Python
-// Only admins can use the AI assistant
+const AI_SERVICE_URL = "http://127.0.0.1:8000";
+
+// -----------------------------------------
+// Helpers
+// -----------------------------------------
+
+function parseClientId(value) {
+    const id = Number(value);
+
+    return Number.isSafeInteger(id) && id > 0
+        ? id
+        : null;
+}
+
+function sendError(res, error, message) {
+    console.error(message, error);
+
+    return res.status(500).json({
+        status: "error",
+        message
+    });
+}
+
+function invalidClient(res) {
+    return res.status(400).json({
+        status: "error",
+        message: "Invalid client ID"
+    });
+}
+
+async function getClientTreatments(clientId) {
+    const [rows] = await pool.query(
+        `
+        SELECT
+            t.treatment_id,
+            t.treatment_type_id,
+            tt.treatment_name AS treatment_type,
+            tt.treatment_name,
+            t.treatment_date,
+            t.duration,
+            t.summary,
+            t.treatment_price AS amount,
+            t.treatment_price,
+            t.amount_paid,
+            GREATEST(
+                t.treatment_price - t.amount_paid,
+                0
+            ) AS debt,
+            CASE
+                WHEN t.amount_paid >= t.treatment_price
+                    THEN 'Paid'
+                WHEN t.amount_paid > 0
+                    THEN 'Partially Paid'
+                ELSE 'Unpaid'
+            END AS status,
+            t.is_special_price,
+            t.price_note
+        FROM treatments t
+        JOIN treatment_types tt
+            ON tt.treatment_type_id = t.treatment_type_id
+        WHERE t.client_id = ?
+        ORDER BY t.treatment_date DESC, t.treatment_id DESC
+        `,
+        [clientId]
+    );
+
+    return rows;
+}
+
+async function getClientPurchases(clientId) {
+    const [rows] = await pool.query(
+        `
+        SELECT
+            p.purchase_id,
+            p.product_id,
+            pr.product_name,
+            p.purchase_date,
+            p.purchase_price,
+            p.amount_paid,
+            GREATEST(
+                p.purchase_price - p.amount_paid,
+                0
+            ) AS debt,
+            CASE
+                WHEN p.amount_paid >= p.purchase_price
+                    THEN 'Paid'
+                WHEN p.amount_paid > 0
+                    THEN 'Partially Paid'
+                ELSE 'Unpaid'
+            END AS status
+        FROM purchases p
+        JOIN products pr
+            ON pr.product_id = p.product_id
+        WHERE p.client_id = ?
+        ORDER BY p.purchase_date DESC, p.purchase_id DESC
+        `,
+        [clientId]
+    );
+
+    return rows;
+}
+
+async function getClientRecommendations(clientId) {
+    const [rows] = await pool.query(
+        `
+        SELECT
+            r.recommendation_id,
+            r.product_id,
+            p.product_name,
+            r.created_at
+        FROM recommendations r
+        JOIN products p
+            ON p.product_id = r.product_id
+        WHERE r.client_id = ?
+        ORDER BY r.created_at DESC
+        `,
+        [clientId]
+    );
+
+    return rows;
+}
+
+async function getClientWallet(clientId) {
+    const [[wallet]] = await pool.query(
+        `
+        SELECT credit_balance
+        FROM wallets
+        WHERE client_id = ?
+        `,
+        [clientId]
+    );
+
+    return Number(wallet?.credit_balance ?? 0);
+}
+
+// =========================================
+// AI CHAT AGENT
+// =========================================
 
 router.post("/agent", authorizeAdmin, async (req, res) => {
     try {
-        const question = req.body.question?.trim();
-        const conversationId = req.body.conversation_id;
+        const question =
+            typeof req.body?.question === "string"
+                ? req.body.question.trim()
+                : "";
 
+        const conversationId = req.body?.conversation_id;
         const adminId = req.user.user_id;
 
         if (!question) {
@@ -32,20 +171,16 @@ router.post("/agent", authorizeAdmin, async (req, res) => {
             });
         }
 
-        // Check if conversation already exists
-
         const [existingConversation] = await pool.query(
             `
-      SELECT conversation_id, admin_id
-      FROM ai_conversations
-      WHERE conversation_id = ?
-      `,
+            SELECT conversation_id, admin_id
+            FROM ai_conversations
+            WHERE conversation_id = ?
+            `,
             [conversationId]
         );
 
-        // Conversation does not exist yet -> create it
         if (existingConversation.length === 0) {
-
             const title =
                 question.length > 60
                     ? question.substring(0, 60) + "..."
@@ -53,25 +188,15 @@ router.post("/agent", authorizeAdmin, async (req, res) => {
 
             await pool.query(
                 `
-        INSERT INTO ai_conversations
-          (conversation_id, admin_id, title)
-        VALUES (?, ?, ?)
-        `,
-                [
-                    conversationId,
-                    adminId,
-                    title
-                ]
+                INSERT INTO ai_conversations
+                    (conversation_id, admin_id, title)
+                VALUES (?, ?, ?)
+                `,
+                [conversationId, adminId, title]
             );
-
-            console.log(
-                `💾 Created conversation ${conversationId}`
-            );
-        }
-
-        // Conversation exists, but belongs to another admin
-        else if (
-            existingConversation[0].admin_id !== adminId
+        } else if (
+            Number(existingConversation[0].admin_id) !==
+            Number(adminId)
         ) {
             return res.status(403).json({
                 status: "error",
@@ -79,110 +204,80 @@ router.post("/agent", authorizeAdmin, async (req, res) => {
             });
         }
 
-        // Load previous conversation history
-
         const [historyRows] = await pool.query(
             `
-        SELECT
-          role,
-          message_text
-        FROM ai_messages
-        WHERE conversation_id = ?
-        ORDER BY message_id ASC
-        `,
+            SELECT role, message_text
+            FROM ai_messages
+            WHERE conversation_id = ?
+            ORDER BY message_id ASC
+            `,
             [conversationId]
         );
 
-        const history = historyRows.map(message => ({
+        const history = historyRows.map((message) => ({
             role: message.role,
             text: message.message_text
         }));
 
-
-        // Save user's message
-
         await pool.query(
             `
-      INSERT INTO ai_messages
-        (conversation_id, role, message_text)
-      VALUES (?, 'user', ?)
-      `,
-            [
-                conversationId,
-                question
-            ]
+            INSERT INTO ai_messages
+                (conversation_id, role, message_text)
+            VALUES (?, 'user', ?)
+            `,
+            [conversationId, question]
         );
 
-
-        // Send question to Python Agent
-
         const response = await axios.post(
-            "http://127.0.0.1:8000/agent",
+            `${AI_SERVICE_URL}/agent`,
             {
-                question: question,
+                question,
                 conversation_id: conversationId,
-                history: history
+                history
             },
             {
                 timeout: 30000
             }
         );
 
-
         if (
-            response.data.status !== "ok" ||
-            !response.data.answer
+            response.data?.status !== "ok" ||
+            !response.data?.answer
         ) {
             throw new Error(
-                response.data.error ||
+                response.data?.error ||
                 "AI service returned an invalid response"
             );
         }
 
         const answer = response.data.answer;
 
-
-        // Save AI response
-
         await pool.query(
             `
-      INSERT INTO ai_messages
-        (conversation_id, role, message_text)
-      VALUES (?, 'assistant', ?)
-      `,
-            [
-                conversationId,
-                answer
-            ]
+            INSERT INTO ai_messages
+                (conversation_id, role, message_text)
+            VALUES (?, 'assistant', ?)
+            `,
+            [conversationId, answer]
         );
 
-
-        // Update conversation activity time
-
         await pool.query(
             `
-      UPDATE ai_conversations
-      SET updated_at = CURRENT_TIMESTAMP
-      WHERE conversation_id = ?
-      `,
+            UPDATE ai_conversations
+            SET updated_at = CURRENT_TIMESTAMP
+            WHERE conversation_id = ?
+            `,
             [conversationId]
         );
-
-
-        // Return response to React
 
         return res.json({
             status: "ok",
             conversation_id: conversationId,
-            answer: answer
+            answer
         });
 
     } catch (error) {
-
-        console.error(
-            "AI Agent error:",
-            error.message
-        );
+        console.error("AI Agent error:", error.message);
 
         if (error.response) {
             console.error(
@@ -198,238 +293,140 @@ router.post("/agent", authorizeAdmin, async (req, res) => {
     }
 });
 
+// =========================================
+// AI SERVICE HEALTH
+// =========================================
+
 router.get("/health", async (req, res) => {
     try {
         const response = await axios.get(
-            "http://127.0.0.1:8000/health"
+            `${AI_SERVICE_URL}/health`,
+            { timeout: 5000 }
         );
 
-        res.json({
+        return res.json({
             status: "ok",
             nodeServer: "connected",
             aiService: response.data
         });
 
     } catch (error) {
-        console.error(
-            "AI service connection error:",
-            error.message
+        return sendError(
+            res,
+            error,
+            "Could not connect to AI service"
         );
-
-        res.status(500).json({
-            status: "error",
-            message: "Could not connect to AI service"
-        });
     }
 });
 
+// =========================================
+// CLIENT AI SUMMARY
+// =========================================
 
-// Client Context
+router.get(
+    "/client-summary/:id",
+    authorizeAdmin,
+    async (req, res) => {
+        try {
+            const clientId = parseClientId(req.params.id);
 
-router.get("/client-summary/:id", async (req, res) => {
+            if (!clientId) {
+                return invalidClient(res);
+            }
 
-    try {
+            const clientResult =
+                await clientsController.getClient(clientId);
 
-        const clientId = Number(req.params.id);
+            if (
+                !clientResult.success ||
+                !clientResult.clients?.length
+            ) {
+                return res.status(404).json({
+                    status: "error",
+                    message: "Client not found"
+                });
+            }
 
-        if (!Number.isInteger(clientId) || clientId <= 0) {
-            return res.status(400).json({
-                status: "error",
-                message: "Invalid client ID"
-            });
-        }
+            const client = clientResult.clients[0];
 
-        // client data 
-        const clientResult =
-            await clientsController.getClient(clientId);
+            const clientData = {
+                client_id: client.user_id,
+                username: client.username,
+                first_name: client.first_name,
+                last_name: client.last_name,
+                email: client.email,
+                phone: client.phone,
+                birth_date: client.birth_date,
+                treatment_status: client.treatment_status,
+                skin_type: client.skin_type,
+                is_verified: Boolean(client.is_verified)
+            };
 
+            const [
+                treatments,
+                purchases,
+                recommendations
+            ] = await Promise.all([
+                getClientTreatments(clientId),
+                getClientPurchases(clientId),
+                getClientRecommendations(clientId)
+            ]);
 
-        if (
-            !clientResult.success ||
-            !clientResult.clients ||
-            clientResult.clients.length === 0
-        ) {
-            return res.status(404).json({
-                status: "error",
-                message: "Client not found"
-            });
-        }
+            // Keep the existing Python payload structure.
+            const contextPayload = {
+                client: clientData,
+                treatments,
+                purchases,
+                recommendations
+            };
 
-
-        const client = clientResult.clients[0];
-
-
-        const clientData = {
-
-            client_id: client.user_id,
-
-            username: client.username,
-
-            first_name: client.first_name,
-
-            last_name: client.last_name,
-
-            email: client.email,
-
-            phone: client.phone,
-
-            birth_date: client.birth_date,
-
-            treatment_status: client.treatment_status,
-
-            skin_type: client.skin_type,
-
-            is_verified: Boolean(client.is_verified)
-
-        };
-
-
-        // client treatment
-        const [treatments] = await pool.query(
-            `
-      SELECT
-        treatment_id,
-        treatment_type,
-        treatment_date,
-        duration,
-        summary,
-        status,
-        amount
-      FROM treatments
-      WHERE client_id = ?
-      ORDER BY treatment_date DESC
-      `,
-            [clientId]
-        );
-        // client purchases
-        const [purchases] = await pool.query(
-            `
-      SELECT
-        p.purchase_id,
-        p.product_id,
-        pr.product_name,
-        p.purchase_date,
-        p.status
-      FROM purchases p
-      JOIN products pr
-        ON p.product_id = pr.product_id
-      WHERE p.client_id = ?
-      ORDER BY p.purchase_date DESC
-      `,
-            [clientId]
-        );
-
-
-        // client recommendations
-        const [recommendations] = await pool.query(
-            `
-      SELECT
-        r.recommendation_id,
-        r.product_id,
-        p.product_name,
-        r.created_at
-      FROM recommendations r
-      JOIN products p
-        ON r.product_id = p.product_id
-      WHERE r.client_id = ?
-      ORDER BY r.created_at DESC
-      `,
-            [clientId]
-        );
-
-
-        const contextPayload = {
-
-            client: clientData,
-
-            treatments: treatments,
-
-            purchases: purchases,
-
-            recommendations: recommendations
-
-        };
-
-        const aiResponse = await axios.post(
-            "http://127.0.0.1:8000/client-ai-summary",
-            contextPayload
-        );
-
-        res.json({
-
-            status: "ok",
-
-            contextPayload: contextPayload,
-
-            aiServiceResponse: aiResponse.data
-
-        });
-
-
-    } catch (error) {
-
-        console.error(
-            "Client summary error:",
-            error.message
-        );
-
-        if (error.message === "clients not found") {
-
-            return res.status(404).json({
-                status: "error",
-                message: "Client not found"
-            });
-
-        }
-
-        if (error.response) {
-
-            console.error(
-                "AI Service response:",
-                error.response.data
+            const aiResponse = await axios.post(
+                `${AI_SERVICE_URL}/client-ai-summary`,
+                contextPayload,
+                { timeout: 30000 }
             );
 
+            return res.json({
+                status: "ok",
+                contextPayload,
+                aiServiceResponse: aiResponse.data
+            });
+
+        } catch (error) {
+            return sendError(
+                res,
+                error,
+                "Failed to create client summary"
+            );
         }
-
-
-        res.status(500).json({
-            status: "error",
-            message: "Failed to create client summary"
-        });
-
     }
+);
 
-});
-
-// AI TOOL: Get client basic information
+// =========================================
+// AI TOOL: CLIENT DETAILS
+// =========================================
 
 router.get("/tools/client/:id", async (req, res) => {
     try {
-        const clientId = Number(req.params.id);
+        const clientId = parseClientId(req.params.id);
 
-        if (!Number.isInteger(clientId) || clientId <= 0) {
-            return res.status(400).json({
-                status: "error",
-                message: "Invalid client ID"
-            });
+        if (!clientId) {
+            return invalidClient(res);
         }
 
-        const clientResult = await clientsController.getClient(clientId);
+        const result =
+            await clientsController.getClient(clientId);
 
-        if (
-            !clientResult.success ||
-            !clientResult.clients ||
-            clientResult.clients.length === 0
-        ) {
+        if (!result.success || !result.clients?.length) {
             return res.status(404).json({
                 status: "error",
                 message: "Client not found"
             });
         }
 
-        const client = clientResult.clients[0];
+        const client = result.clients[0];
 
-        res.json({
+        return res.json({
             client_id: client.user_id,
             first_name: client.first_name,
             last_name: client.last_name,
@@ -438,21 +435,24 @@ router.get("/tools/client/:id", async (req, res) => {
         });
 
     } catch (error) {
-        console.error("AI get_client tool error:", error.message);
-
-        res.status(500).json({
-            status: "error",
-            message: "Failed to retrieve client"
-        });
+        return sendError(
+            res,
+            error,
+            "Failed to retrieve client"
+        );
     }
 });
 
-
-// AI TOOL: Search client by name
+// =========================================
+// AI TOOL: SEARCH CLIENT
+// =========================================
 
 router.get("/tools/clients/search", async (req, res) => {
     try {
-        const name = req.query.name?.trim();
+        const name =
+            typeof req.query.name === "string"
+                ? req.query.name.trim()
+                : "";
 
         if (!name) {
             return res.status(400).json({
@@ -465,115 +465,83 @@ router.get("/tools/clients/search", async (req, res) => {
 
         const [clients] = await pool.query(
             `
-      SELECT
-        u.user_id AS client_id,
-        u.first_name,
-        u.last_name,
-        c.skin_type,
-        c.treatment_status
-      FROM users u
-      JOIN clients c
-        ON u.user_id = c.client_id
-      WHERE u.role_id = 2
-        AND (
-          u.first_name LIKE ?
-          OR u.last_name LIKE ?
-          OR CONCAT(u.first_name, ' ', u.last_name) LIKE ?
-        )
-      ORDER BY u.first_name, u.last_name
-      LIMIT 10
-      `,
+            SELECT
+                u.user_id AS client_id,
+                u.first_name,
+                u.last_name,
+                c.skin_type,
+                c.treatment_status
+            FROM users u
+            JOIN clients c
+                ON u.user_id = c.client_id
+            WHERE u.role_id = 2
+              AND (
+                  u.first_name LIKE ?
+                  OR u.last_name LIKE ?
+                  OR CONCAT(
+                      u.first_name, ' ', u.last_name
+                  ) LIKE ?
+              )
+            ORDER BY u.first_name, u.last_name
+            LIMIT 10
+            `,
             [searchTerm, searchTerm, searchTerm]
         );
 
-        return res.json({
-            clients
-        });
+        return res.json({ clients });
 
     } catch (error) {
-        console.error("AI search_client tool error:", error.message);
-
-        return res.status(500).json({
-            status: "error",
-            message: "Failed to search clients"
-        });
+        return sendError(
+            res,
+            error,
+            "Failed to search clients"
+        );
     }
 });
 
-// AI TOOL: Get client treatments
+// =========================================
+// AI TOOL: CLIENT TREATMENTS
+// =========================================
 
 router.get("/tools/client/:id/treatments", async (req, res) => {
     try {
-        const clientId = Number(req.params.id);
+        const clientId = parseClientId(req.params.id);
 
-        if (!Number.isInteger(clientId) || clientId <= 0) {
-            return res.status(400).json({
-                status: "error",
-                message: "Invalid client ID"
-            });
+        if (!clientId) {
+            return invalidClient(res);
         }
 
-        const [treatments] = await pool.query(
-            `
-      SELECT
-        treatment_id,
-        treatment_type,
-        treatment_date,
-        duration,
-        summary,
-        status,
-        amount
-      FROM treatments
-      WHERE client_id = ?
-      ORDER BY treatment_date DESC
-      `,
-            [clientId]
-        );
+        const treatments =
+            await getClientTreatments(clientId);
 
         return res.json({
             client_id: clientId,
-            treatments: treatments
+            treatments
         });
 
     } catch (error) {
-        console.error("AI get_treatments tool error:", error.message);
-
-        return res.status(500).json({
-            status: "error",
-            message: "Failed to retrieve treatments"
-        });
+        return sendError(
+            res,
+            error,
+            "Failed to retrieve treatments"
+        );
     }
 });
 
-// AI TOOL: Get client purchases
+// =========================================
+// AI TOOL: CLIENT PURCHASES
+// =========================================
 
 router.get("/tools/client/:id/purchases", async (req, res) => {
     try {
-        const clientId = Number(req.params.id);
+        const clientId = parseClientId(req.params.id);
 
-        if (!Number.isInteger(clientId) || clientId <= 0) {
-            return res.status(400).json({
-                status: "error",
-                message: "Invalid client ID"
-            });
+        if (!clientId) {
+            return invalidClient(res);
         }
 
-        const [purchases] = await pool.query(
-            `
-      SELECT
-        p.purchase_id,
-        p.product_id,
-        pr.product_name,
-        p.purchase_date,
-        p.status
-      FROM purchases p
-      JOIN products pr
-        ON p.product_id = pr.product_id
-      WHERE p.client_id = ?
-      ORDER BY p.purchase_date DESC
-      `,
-            [clientId]
-        );
+        const purchases =
+            await getClientPurchases(clientId);
 
         return res.json({
             client_id: clientId,
@@ -581,102 +549,89 @@ router.get("/tools/client/:id/purchases", async (req, res) => {
         });
 
     } catch (error) {
-        console.error("AI get_purchases tool error:", error.message);
-
-        return res.status(500).json({
-            status: "error",
-            message: "Failed to retrieve purchases"
-        });
+        return sendError(
+            res,
+            error,
+            "Failed to retrieve purchases"
+        );
     }
 });
 
+// =========================================
+// AI TOOL: CLIENT RECOMMENDATIONS
+// =========================================
 
-// AI TOOL: Get client recommendations
+router.get(
+    "/tools/client/:id/recommendations",
+    async (req, res) => {
+        try {
+            const clientId = parseClientId(req.params.id);
 
-router.get("/tools/client/:id/recommendations", async (req, res) => {
-    try {
-        const clientId = Number(req.params.id);
+            if (!clientId) {
+                return invalidClient(res);
+            }
 
-        if (!Number.isInteger(clientId) || clientId <= 0) {
-            return res.status(400).json({
-                status: "error",
-                message: "Invalid client ID"
+            const recommendations =
+                await getClientRecommendations(clientId);
+
+            return res.json({
+                client_id: clientId,
+                recommendations
             });
+
+        } catch (error) {
+            return sendError(
+                res,
+                error,
+                "Failed to retrieve recommendations"
+            );
         }
-
-        const [recommendations] = await pool.query(
-            `
-      SELECT
-        r.recommendation_id,
-        r.product_id,
-        p.product_name,
-        r.created_at
-      FROM recommendations r
-      JOIN products p
-        ON r.product_id = p.product_id
-      WHERE r.client_id = ?
-      ORDER BY r.created_at DESC
-      `,
-            [clientId]
-        );
-
-        return res.json({
-            client_id: clientId,
-            recommendations
-        });
-
-    } catch (error) {
-        console.error(
-            "AI get_recommendations tool error:",
-            error.message
-        );
-
-        return res.status(500).json({
-            status: "error",
-            message: "Failed to retrieve recommendations"
-        });
     }
-});
+);
 
-// GET ALL AI CONVERSATIONS FOR CURRENT ADMIN
+// =========================================
+// GET ADMIN AI CONVERSATIONS
+// =========================================
 
-router.get("/conversations", authorizeAdmin, async (req, res) => {
-    try {
-        const adminId = req.user.user_id;
+router.get(
+    "/conversations",
+    authorizeAdmin,
+    async (req, res) => {
+        try {
+            const adminId = req.user.user_id;
 
-        const [conversations] = await pool.query(
-            `
-      SELECT
-        conversation_id,
-        title,
-        created_at,
-        updated_at
-      FROM ai_conversations
-      WHERE admin_id = ?
-      ORDER BY updated_at DESC
-      `,
-            [adminId]
-        );
+            const [conversations] = await pool.query(
+                `
+                SELECT
+                    conversation_id,
+                    title,
+                    created_at,
+                    updated_at
+                FROM ai_conversations
+                WHERE admin_id = ?
+                ORDER BY updated_at DESC
+                `,
+                [adminId]
+            );
 
-        return res.json({
-            status: "ok",
-            conversations
-        });
+            return res.json({
+                status: "ok",
+                conversations
+            });
 
-    } catch (error) {
-        console.error(
-            "Get AI conversations error:",
-            error.message
-        );
-
-        return res.status(500).json({
-            status: "error",
-            message: "Failed to retrieve conversations"
-        });
+        } catch (error) {
+            return sendError(
+                res,
+                error,
+                "Failed to retrieve conversations"
+            );
+        }
     }
-});
+);
 
-// GET MESSAGES OF ONE CONVERSATION
+// =========================================
+// GET CONVERSATION MESSAGES
+// =========================================
 
 router.get(
     "/conversations/:conversationId/messages",
@@ -686,17 +641,17 @@ router.get(
             const adminId = req.user.user_id;
             const conversationId = req.params.conversationId;
 
-            const [conversation] = await pool.query(
+            const [conversations] = await pool.query(
                 `
-        SELECT conversation_id
-        FROM ai_conversations
-        WHERE conversation_id = ?
-          AND admin_id = ?
-        `,
+                SELECT conversation_id
+                FROM ai_conversations
+                WHERE conversation_id = ?
+                  AND admin_id = ?
+                `,
                 [conversationId, adminId]
             );
 
-            if (conversation.length === 0) {
+            if (!conversations.length) {
                 return res.status(404).json({
                     status: "error",
                     message: "Conversation not found"
@@ -705,15 +660,15 @@ router.get(
 
             const [messages] = await pool.query(
                 `
-        SELECT
-          message_id,
-          role,
-          message_text,
-          created_at
-        FROM ai_messages
-        WHERE conversation_id = ?
-        ORDER BY message_id ASC
-        `,
+                SELECT
+                    message_id,
+                    role,
+                    message_text,
+                    created_at
+                FROM ai_messages
+                WHERE conversation_id = ?
+                ORDER BY message_id ASC
+                `,
                 [conversationId]
             );
 
@@ -723,20 +678,18 @@ router.get(
             });
 
         } catch (error) {
-            console.error(
-                "Get AI messages error:",
-                error.message
+            return sendError(
+                res,
+                error,
+                "Failed to retrieve messages"
             );
-
-            return res.status(500).json({
-                status: "error",
-                message: "Failed to retrieve messages"
-            });
         }
     }
 );
 
+// =========================================
 // DELETE CONVERSATION
+// =========================================
 
 router.delete(
     "/conversations/:conversationId",
@@ -748,10 +701,10 @@ router.delete(
 
             const [result] = await pool.query(
                 `
-        DELETE FROM ai_conversations
-        WHERE conversation_id = ?
-          AND admin_id = ?
-        `,
+                DELETE FROM ai_conversations
+                WHERE conversation_id = ?
+                  AND admin_id = ?
+                `,
                 [conversationId, adminId]
             );
 
@@ -762,244 +715,364 @@ router.delete(
                 });
             }
 
-            return res.json({
-                status: "ok"
-            });
+            return res.json({ status: "ok" });
 
         } catch (error) {
-            console.error(
-                "Delete AI conversation error:",
-                error.message
+            return sendError(
+                res,
+                error,
+                "Failed to delete conversation"
             );
-
-            return res.status(500).json({
-                status: "error",
-                message: "Failed to delete conversation"
-            });
         }
     }
 );
 
-// AI TOOL: Clinic overview
+// =========================================
+// AI TOOL: CLINIC OVERVIEW
+// =========================================
 
 router.get("/tools/clinic/overview", async (req, res) => {
     try {
-        const [[clientCount]] = await pool.query(`
-      SELECT COUNT(*) AS total_clients
-      FROM clients
-    `);
+        const [[clientCount]] = await pool.query(
+            `
+            SELECT COUNT(*) AS total_clients
+            FROM clients
+            `
+        );
 
-        const [[unpaidTreatments]] = await pool.query(`
-      SELECT
-        COUNT(*) AS unpaid_treatments_count,
-        COALESCE(SUM(amount), 0) AS unpaid_treatments_total
-      FROM treatments
-      WHERE status = 'Unpaid'
-    `);
+        const [[unpaidTreatments]] = await pool.query(
+            `
+            SELECT
+                COUNT(*) AS unpaid_treatments_count,
+                COALESCE(
+                    SUM(
+                        GREATEST(
+                            treatment_price - amount_paid,
+                            0
+                        )
+                    ),
+                    0
+                ) AS unpaid_treatments_total
+            FROM treatments
+            WHERE treatment_price > amount_paid
+            `
+        );
 
-        const [[unpaidPurchases]] = await pool.query(`
-      SELECT
-        COUNT(*) AS unpaid_purchases_count,
-        COALESCE(SUM(pr.product_price), 0) AS unpaid_purchases_total
-      FROM purchases p
-      JOIN products pr
-        ON p.product_id = pr.product_id
-      WHERE p.status = 'Unpaid'
-    `);
+        const [[unpaidPurchases]] = await pool.query(
+            `
+            SELECT
+                COUNT(*) AS unpaid_purchases_count,
+                COALESCE(
+                    SUM(
+                        GREATEST(
+                            purchase_price - amount_paid,
+                            0
+                        )
+                    ),
+                    0
+                ) AS unpaid_purchases_total
+            FROM purchases
+            WHERE purchase_price > amount_paid
+            `
+        );
 
         return res.json({
-            total_clients: clientCount.total_clients,
+            total_clients: Number(
+                clientCount.total_clients
+            ),
 
             unpaid_treatments: {
-                count: unpaidTreatments.unpaid_treatments_count,
-                total: Number(unpaidTreatments.unpaid_treatments_total)
+                count: Number(
+                    unpaidTreatments.unpaid_treatments_count
+                ),
+                total: Number(
+                    unpaidTreatments.unpaid_treatments_total
+                )
             },
 
             unpaid_purchases: {
-                count: unpaidPurchases.unpaid_purchases_count,
-                total: Number(unpaidPurchases.unpaid_purchases_total)
+                count: Number(
+                    unpaidPurchases.unpaid_purchases_count
+                ),
+                total: Number(
+                    unpaidPurchases.unpaid_purchases_total
+                )
             }
         });
 
     } catch (error) {
-        console.error("AI clinic overview error:", error.message);
-
-        return res.status(500).json({
-            status: "error",
-            message: "Failed to retrieve clinic overview"
-        });
+        return sendError(
+            res,
+            error,
+            "Failed to retrieve clinic overview"
+        );
     }
 });
 
-// AI TOOL: Client birthdays
-// month: optional, 1-12
+// =========================================
+// AI TOOL: CLIENT BIRTHDAYS
+// =========================================
 
-router.get("/tools/clients/birthdays", async (req, res) => {
+router.get(
+    "/tools/clients/birthdays",
+    async (req, res) => {
+        try {
+            const month = req.query.month
+                ? Number(req.query.month)
+                : new Date().getMonth() + 1;
+
+            if (
+                !Number.isInteger(month) ||
+                month < 1 ||
+                month > 12
+            ) {
+                return res.status(400).json({
+                    status: "error",
+                    message: "Invalid month"
+                });
+            }
+
+            const [clients] = await pool.query(
+                `
+                SELECT
+                    u.user_id AS client_id,
+                    u.first_name,
+                    u.last_name,
+                    u.birth_date
+                FROM users u
+                JOIN clients c
+                    ON c.client_id = u.user_id
+                WHERE MONTH(u.birth_date) = ?
+                ORDER BY DAY(u.birth_date)
+                `,
+                [month]
+            );
+
+            return res.json({
+                month,
+                clients
+            });
+
+        } catch (error) {
+            return sendError(
+                res,
+                error,
+                "Failed to retrieve birthdays"
+            );
+        }
+    }
+);
+
+// =========================================
+// AI TOOL: UNPAID PRODUCT PURCHASES
+// =========================================
+
+router.get(
+    "/tools/finance/unpaid-products",
+    async (req, res) => {
+        try {
+            const [items] = await pool.query(
+                `
+                SELECT
+                    p.purchase_id,
+                    u.user_id AS client_id,
+                    u.first_name,
+                    u.last_name,
+                    pr.product_name,
+                    p.purchase_price,
+                    p.amount_paid,
+                    GREATEST(
+                        p.purchase_price - p.amount_paid,
+                        0
+                    ) AS debt,
+                    p.purchase_date
+                FROM purchases p
+                JOIN users u
+                    ON u.user_id = p.client_id
+                JOIN products pr
+                    ON pr.product_id = p.product_id
+                WHERE p.purchase_price > p.amount_paid
+                ORDER BY p.purchase_date DESC
+                `
+            );
+
+            const total = items.reduce(
+                (sum, item) =>
+                    sum + Number(item.debt),
+                0
+            );
+
+            return res.json({
+                count: items.length,
+                total,
+                items
+            });
+
+        } catch (error) {
+            return sendError(
+                res,
+                error,
+                "Failed to retrieve unpaid purchases"
+            );
+        }
+    }
+);
+
+// =========================================
+// AI TOOL: CLIENT WALLET
+// =========================================
+
+router.get("/tools/client/:id/wallet", async (req, res) => {
     try {
-        let month = req.query.month
-            ? Number(req.query.month)
-            : new Date().getMonth() + 1;
+        const clientId = parseClientId(req.params.id);
 
-        if (
-            !Number.isInteger(month) ||
-            month < 1 ||
-            month > 12
-        ) {
-            return res.status(400).json({
+        if (!clientId) {
+            return invalidClient(res);
+        }
+
+        const [[client]] = await pool.query(
+            `
+            SELECT client_id
+            FROM clients
+            WHERE client_id = ?
+            `,
+            [clientId]
+        );
+
+        if (!client) {
+            return res.status(404).json({
                 status: "error",
-                message: "Invalid month"
+                message: "Client not found"
             });
         }
 
-        const [clients] = await pool.query(`
-      SELECT
-        u.user_id AS client_id,
-        u.first_name,
-        u.last_name,
-        u.birth_date
-      FROM users u
-      JOIN clients c
-        ON u.user_id = c.client_id
-      WHERE MONTH(u.birth_date) = ?
-      ORDER BY DAY(u.birth_date)
-    `, [month]);
+        const creditBalance =
+            await getClientWallet(clientId);
 
-        return res.json({
-            month,
-            clients
-        });
+        const [movements] = await pool.query(
+            `
+            SELECT
+                payment_id,
+                payment_date,
+                payment_source,
+                target_type,
+                treatment_id,
+                purchase_id,
+                amount_received,
+                amount_applied,
+                note,
+                CASE
+                    WHEN note LIKE
+                        'MANUAL_WALLET_CREDIT:%'
+                        THEN 'MANUAL_CREDIT'
 
-    } catch (error) {
-        console.error("AI birthdays tool error:", error.message);
+                    WHEN note LIKE
+                        'MANUAL_WALLET_DEBIT:%'
+                        THEN 'MANUAL_DEBIT'
 
-        return res.status(500).json({
-            status: "error",
-            message: "Failed to retrieve birthdays"
-        });
-    }
-});
+                    WHEN payment_source = 'WALLET'
+                        THEN 'WALLET_PAYMENT'
 
-// AI TOOL: Unpaid product purchases
+                    WHEN target_type = 'WALLET_CREDIT'
+                        THEN 'WALLET_CREDIT'
 
-router.get("/tools/finance/unpaid-products", async (req, res) => {
-    try {
-        const [items] = await pool.query(`
-      SELECT
-        p.purchase_id,
-        u.user_id AS client_id,
-        u.first_name,
-        u.last_name,
-        pr.product_name,
-        pr.product_price,
-        p.purchase_date
-      FROM purchases p
-      JOIN users u
-        ON p.client_id = u.user_id
-      JOIN products pr
-        ON p.product_id = pr.product_id
-      WHERE p.status = 'Unpaid'
-      ORDER BY p.purchase_date DESC
-    `);
+                    WHEN payment_source = 'DIRECT'
+                         AND amount_received > amount_applied
+                        THEN 'OVERPAYMENT'
 
-        const total = items.reduce(
-            (sum, item) =>
-                sum + Number(item.product_price),
-            0
+                    ELSE 'OTHER'
+                END AS movement_type
+            FROM payments
+            WHERE client_id = ?
+              AND (
+                  payment_source = 'WALLET'
+                  OR target_type = 'WALLET_CREDIT'
+                  OR (
+                      payment_source = 'DIRECT'
+                      AND amount_received > amount_applied
+                  )
+              )
+            ORDER BY payment_date DESC, payment_id DESC
+            LIMIT 50
+            `,
+            [clientId]
         );
 
         return res.json({
-            count: items.length,
-            total,
-            items
+            client_id: clientId,
+            credit_balance: creditBalance,
+            movements
         });
 
     } catch (error) {
-        console.error(
-            "AI unpaid products tool error:",
-            error.message
+        return sendError(
+            res,
+            error,
+            "Failed to retrieve wallet data"
         );
-
-        return res.status(500).json({
-            status: "error",
-            message: "Failed to retrieve unpaid purchases"
-        });
     }
 });
 
-// AI TOOL: Client financial summary
+// =========================================
+// AI TOOL: CLIENT FINANCIAL SUMMARY
+// =========================================
 
 router.get(
     "/tools/client/:id/financial-summary",
     async (req, res) => {
         try {
-            const clientId = Number(req.params.id);
+            const clientId = parseClientId(req.params.id);
 
-            if (!Number.isInteger(clientId) || clientId <= 0) {
-                return res.status(400).json({
-                    status: "error",
-                    message: "Invalid client ID"
-                });
+            if (!clientId) {
+                return invalidClient(res);
             }
 
-            const [[treatments]] = await pool.query(`
-        SELECT
-          COALESCE(
-            SUM(
-              CASE
-                WHEN status = 'Paid'
-                THEN amount
-                ELSE 0
-              END
-            ),
-            0
-          ) AS paid_total,
+            const [[treatments]] = await pool.query(
+                `
+                SELECT
+                    COALESCE(
+                        SUM(amount_paid), 0
+                    ) AS paid_total,
 
-          COALESCE(
-            SUM(
-              CASE
-                WHEN status = 'Unpaid'
-                THEN amount
-                ELSE 0
-              END
-            ),
-            0
-          ) AS unpaid_total
+                    COALESCE(
+                        SUM(
+                            GREATEST(
+                                treatment_price - amount_paid,
+                                0
+                            )
+                        ),
+                        0
+                    ) AS unpaid_total
+                FROM treatments
+                WHERE client_id = ?
+                `,
+                [clientId]
+            );
 
-        FROM treatments
-        WHERE client_id = ?
-      `, [clientId]);
+            const [[purchases]] = await pool.query(
+                `
+                SELECT
+                    COALESCE(
+                        SUM(amount_paid), 0
+                    ) AS paid_total,
 
+                    COALESCE(
+                        SUM(
+                            GREATEST(
+                                purchase_price - amount_paid,
+                                0
+                            )
+                        ),
+                        0
+                    ) AS unpaid_total
+                FROM purchases
+                WHERE client_id = ?
+                `,
+                [clientId]
+            );
 
-            const [[purchases]] = await pool.query(`
-        SELECT
-          COALESCE(
-            SUM(
-              CASE
-                WHEN p.status = 'Paid'
-                THEN pr.product_price
-                ELSE 0
-              END
-            ),
-            0
-          ) AS paid_total,
-
-          COALESCE(
-            SUM(
-              CASE
-                WHEN p.status = 'Unpaid'
-                THEN pr.product_price
-                ELSE 0
-              END
-            ),
-            0
-          ) AS unpaid_total
-
-        FROM purchases p
-        JOIN products pr
-          ON p.product_id = pr.product_id
-        WHERE p.client_id = ?
-      `, [clientId]);
-
+            const walletBalance =
+                await getClientWallet(clientId);
 
             const treatmentRevenue =
                 Number(treatments.paid_total);
@@ -1007,79 +1080,76 @@ router.get(
             const productRevenue =
                 Number(purchases.paid_total);
 
+            const treatmentDebt =
+                Number(treatments.unpaid_total);
+
+            const purchaseDebt =
+                Number(purchases.unpaid_total);
+
             return res.json({
                 client_id: clientId,
+                wallet_balance: walletBalance,
 
                 paid: {
                     treatments: treatmentRevenue,
                     products: productRevenue,
-
                     total:
-                        treatmentRevenue +
-                        productRevenue
+                        treatmentRevenue + productRevenue
                 },
 
                 unpaid: {
-                    treatments:
-                        Number(treatments.unpaid_total),
-
-                    products:
-                        Number(purchases.unpaid_total),
-
+                    treatments: treatmentDebt,
+                    products: purchaseDebt,
                     total:
-                        Number(treatments.unpaid_total) +
-                        Number(purchases.unpaid_total)
+                        treatmentDebt + purchaseDebt
                 }
             });
 
         } catch (error) {
-            console.error(
-                "AI financial summary error:",
-                error.message
+            return sendError(
+                res,
+                error,
+                "Failed to retrieve financial summary"
             );
-
-            return res.status(500).json({
-                status: "error",
-                message:
-                    "Failed to retrieve financial summary"
-            });
         }
     }
 );
 
-// AI TOOL: Client contact information
+// =========================================
+// AI TOOL: CLIENT CONTACT
+// =========================================
 
 router.get("/tools/client/:id/contact", async (req, res) => {
     try {
-        const clientId = Number(req.params.id);
+        const clientId = parseClientId(req.params.id);
 
-        if (!Number.isInteger(clientId) || clientId <= 0) {
-            return res.status(400).json({
-                status: "error",
-                message: "Invalid client ID"
-            });
+        if (!clientId) {
+            return invalidClient(res);
         }
 
-        const [clients] = await pool.query(`
-  SELECT
-    u.user_id AS client_id,
-    u.first_name,
-    u.last_name,
-    u.email,
-    u.phone,
-    u.birth_date,
-    TIMESTAMPDIFF(
-      YEAR,
-      u.birth_date,
-      CURDATE()
-    ) AS age
-  FROM users u
-  JOIN clients c
-    ON u.user_id = c.client_id
-  WHERE u.user_id = ?
-`, [clientId]);
+        const [clients] = await pool.query(
+            `
+            SELECT
+                u.user_id AS client_id,
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.phone,
+                u.birth_date,
+                TIMESTAMPDIFF(
+                    YEAR,
+                    u.birth_date,
+                    CURDATE()
+                ) AS age
+            FROM users u
+            JOIN clients c
+                ON c.client_id = u.user_id
+            WHERE u.user_id = ?
+            `,
+            [clientId]
+        );
 
-        if (clients.length === 0) {
+        if (!clients.length) {
             return res.status(404).json({
                 status: "error",
                 message: "Client not found"
@@ -1089,16 +1159,16 @@ router.get("/tools/client/:id/contact", async (req, res) => {
         return res.json(clients[0]);
 
     } catch (error) {
-        console.error(
-            "AI contact tool error:",
-            error.message
+        return sendError(
+            res,
+            error,
+            "Failed to retrieve contact information"
         );
-
-        return res.status(500).json({
-            status: "error",
-            message: "Failed to retrieve contact information"
-        });
     }
 });
+
+// =========================================
+// EXPORT
+// =========================================
 
 module.exports = router;

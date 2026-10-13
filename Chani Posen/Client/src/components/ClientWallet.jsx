@@ -436,7 +436,7 @@ export default function ClientWallet({ clientId }) {
                             }
                         }}
                     >
-                        הוספת כסף
+                         הוספת כסף
                     </Button>
 
                     <Button
