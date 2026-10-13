@@ -32,6 +32,10 @@ import Tooltip from '@mui/material/Tooltip';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useOutletContext } from 'react-router-dom';
+import TreatmentsTable from "./TreatmentsTable";
+import AddTreatmentModal from "./AddTreatmentModal";
+import EditTreatmentModal from "./EditTreatmentModal";
+import TreatmentPaymentModal from "./TreatmentPaymentModal";
 
 function createData(
     treatment_id,
@@ -63,56 +67,6 @@ function createData(
     };
 }
 
-const headCells = [
-    {
-        id: 'treatment_type',
-        numeric: false,
-        disablePadding: true,
-        label: 'סוג הטיפול'
-    },
-    {
-        id: 'treatment_date',
-        numeric: false,
-        disablePadding: false,
-        label: 'תאריך'
-    },
-    {
-        id: 'duration',
-        numeric: true,
-        disablePadding: false,
-        label: 'זמן הטיפול'
-    },
-    {
-        id: 'summary',
-        numeric: false,
-        disablePadding: false,
-        label: 'סיכום'
-    },
-    {
-        id: 'treatment_price',
-        numeric: true,
-        disablePadding: false,
-        label: 'מחיר'
-    },
-    {
-        id: 'amount_paid',
-        numeric: true,
-        disablePadding: false,
-        label: 'שולם'
-    },
-    {
-        id: 'debt',
-        numeric: true,
-        disablePadding: false,
-        label: 'חוב'
-    },
-    {
-        id: 'actions',
-        numeric: false,
-        disablePadding: false,
-        label: 'פעולות'
-    }
-];
 
 function descendingComparator(a, b, orderBy) {
     if (b[orderBy] > a[orderBy]) return -1;
@@ -124,70 +78,10 @@ function getComparator(order, orderBy) {
     return order === 'desc' ? (a, b) => descendingComparator(a, b, orderBy) : (a, b) => -descendingComparator(a, b, orderBy);
 }
 
-function EnhancedTableHead(props) {
-    const { onSelectAllClick, order, orderBy, numSelected, rowCount, onRequestSort } = props;
-    const createSortHandler = (property) => (event) => {
-        onRequestSort(event, property);
-    };
-
-    return (
-        <TableHead>
-            <TableRow>
-                <TableCell padding="checkbox">
-                    <Checkbox
-                        color="primary"
-                        checked={numSelected === rowCount}
-                        onChange={onSelectAllClick}
-                        inputProps={{
-                            'aria-label': 'select all desserts',
-                        }}
-                    />
-                </TableCell>
-                {headCells.map((headCell) => (
-                    <TableCell
-                        key={headCell.id}
-                        align={headCell.numeric ? 'center' : 'left'}
-                        padding={headCell.disablePadding ? 'none' : 'normal'}
-                        sortDirection={orderBy === headCell.id ? order : false}
-                    >
-                        <TableSortLabel
-                            active={orderBy === headCell.id}
-                            direction={orderBy === headCell.id ? order : 'asc'}
-                            onClick={createSortHandler(headCell.id)}
-                        >
-                            {headCell.label}
-                            {orderBy === headCell.id ? (
-                                <Box component="span" sx={visuallyHidden}>
-                                    {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                                </Box>
-                            ) : null}
-                        </TableSortLabel>
-                    </TableCell>
-                ))}
-            </TableRow>
-        </TableHead>
-    );
-}
-
-EnhancedTableHead.propTypes = {
-    numSelected: PropTypes.number.isRequired,
-    onRequestSort: PropTypes.func.isRequired,
-    onSelectAllClick: PropTypes.func.isRequired,
-    order: PropTypes.oneOf(['asc', 'desc']).isRequired,
-    orderBy: PropTypes.string.isRequired,
-    rowCount: PropTypes.number.isRequired,
-};
-
 
 export default function ClientTreatments() {
     const { clientId } = useOutletContext();
     const [treatments, setTreatments] = useState([]);
-    const [order, setOrder] = useState('asc');
-    const [orderBy, setOrderBy] = useState('treatment_date');
-    const [selected, setSelected] = useState([]);
-    const [page, setPage] = useState(0);
-    const [dense, setDense] = useState(false);
-    const [rowsPerPage, setRowsPerPage] = useState(5);
     const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
     const [currentTreatmentToDelete, setCurrentTreatmentToDelete] = useState(null);
     const [editModalOpen, setEditModalOpen] = useState(false);
@@ -216,6 +110,15 @@ export default function ClientTreatments() {
     });
     const [treatmentTypes, setTreatmentTypes] = useState([]);
     const previousDataRef = useRef([]);
+    const [paymentTreatment, setPaymentTreatment] = useState(null);
+    const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+    const [savingTreatment, setSavingTreatment] = useState(false);
+    const savingTreatmentRef = useRef(false);
+
+    const handleOpenPaymentModal = (treatment) => {
+        setPaymentTreatment(treatment);
+        setPaymentModalOpen(true);
+    };
 
     const loadTreatments = React.useCallback(() => {
         const url = `treatments/${clientId}`;
@@ -294,54 +197,6 @@ export default function ClientTreatments() {
             });
     }, []);
 
-    const handleRequestSort = (event, property) => {
-        const isAsc = orderBy === property && order === 'asc';
-        setOrder(isAsc ? 'desc' : 'asc');
-        setOrderBy(property);
-    };
-
-    const handleSelectAllClick = (event) => {
-        if (event.target.checked) {
-            const newSelected = treatments.map((n) => n.treatment_id);
-            setSelected(newSelected);
-            return;
-        }
-        setSelected([]);
-    };
-
-    const handleClick = (event, id) => {
-        const selectedIndex = selected.indexOf(id);
-        let newSelected = [];
-
-        if (selectedIndex === -1) {
-            newSelected = newSelected.concat(selected, id);
-        } else if (selectedIndex === 0) {
-            newSelected = newSelected.concat(selected.slice(1));
-        } else if (selectedIndex === selected.length - 1) {
-            newSelected = newSelected.concat(selected.slice(0, -1));
-        } else if (selectedIndex > 0) {
-            newSelected = newSelected.concat(
-                selected.slice(0, selectedIndex),
-                selected.slice(selectedIndex + 1),
-            );
-        }
-
-        setSelected(newSelected);
-    };
-
-    const handleChangePage = (event, newPage) => {
-        setPage(newPage);
-    };
-
-    const handleChangeRowsPerPage = (event) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
-    };
-
-    const handleChangeDense = (event) => {
-        setDense(event.target.checked);
-    };
-
     const handleOpenDeleteModal = (treatment) => {
 
         if (Number(treatment.amount_paid) > 0) {
@@ -415,19 +270,30 @@ export default function ClientTreatments() {
         setErrors({});
     };
 
+
     const handleOpenEditModal = (treatment) => {
         setEditTreatment({
             treatment_id: treatment.treatment_id,
-            summary: treatment.summary || '',
+            treatment_type_id: treatment.treatment_type_id,
+            treatment_name:
+                treatment.treatment_name ||
+                treatment.treatment_type ||
+                "",
+            treatment_date: treatment.treatment_date,
+            duration: treatment.duration,
+            summary: treatment.summary || "",
             treatment_price: treatment.treatment_price,
             amount_paid: treatment.amount_paid || 0,
-            is_special_price: treatment.is_special_price || false,
-            price_note: treatment.price_note || ''
+            is_special_price: Boolean(
+                Number(treatment.is_special_price)
+            ),
+            price_note: treatment.price_note || ""
         });
 
         setErrors({});
         setEditModalOpen(true);
     };
+
 
     const handleCloseEditModal = () => {
         setEditModalOpen(false);
@@ -447,40 +313,46 @@ export default function ClientTreatments() {
     const handleSaveEditWithValidation = (treatment) => {
         const validationErrors = {};
 
+        if (!treatment.treatment_type_id) {
+            validationErrors.type = "יש לבחור סוג טיפול";
+        }
+
         if (
-            !treatment.summary ||
-            treatment.summary.trim() === ''
+            !Number.isInteger(Number(treatment.duration)) ||
+            Number(treatment.duration) <= 0
         ) {
+            validationErrors.duration =
+                "יש להזין משך טיפול תקין";
+        }
+
+        if (!treatment.summary?.trim()) {
             validationErrors.summary =
-                'יש להזין סיכום טיפול.';
+                "יש להזין סיכום טיפול";
         }
 
+        const price = Number(treatment.treatment_price);
+
         if (
-            treatment.treatment_price === '' ||
-            treatment.treatment_price === null ||
-            isNaN(Number(treatment.treatment_price)) ||
-            Number(treatment.treatment_price) < 0
+            treatment.treatment_price === "" ||
+            treatment.treatment_price == null ||
+            !Number.isFinite(price) ||
+            price < 0 ||
+            Math.abs(price * 100 - Math.round(price * 100)) > 1e-7
         ) {
             validationErrors.treatment_price =
-                'יש להזין מחיר טיפול תקין.';
+                "יש להזין מחיר תקין, עד שתי ספרות אחרי הנקודה";
         }
 
-        /*
-            We do not allow lowering the treatment price
-            below the amount that has already been paid.
-        */
-        if (
-            Number(treatment.treatment_price) <
-            Number(treatment.amount_paid || 0)
-        ) {
-            validationErrors.treatment_price =
-                'מחיר הטיפול לא יכול להיות נמוך מהסכום שכבר שולם.';
+        if (!treatment.treatment_date) {
+            validationErrors.date =
+                "יש להזין תאריך טיפול";
         }
 
         return validationErrors;
     };
 
-    const handleSaveEdit = () => {
+
+    const handleSaveEdit = async () => {
         const validationErrors =
             handleSaveEditWithValidation(editTreatment);
 
@@ -489,58 +361,97 @@ export default function ClientTreatments() {
             return;
         }
 
-        const url =
-            `treatments/${editTreatment.treatment_id}`;
+        try {
+            const response = await serverRequests(
+                "PUT",
+                `treatments/${editTreatment.treatment_id}`,
+                {
+                    treatment_type_id:
+                        Number(editTreatment.treatment_type_id),
 
-        serverRequests('PUT', url, {
-            summary: editTreatment.summary,
 
-            treatment_price:
-                Number(editTreatment.treatment_price),
+                    treatment_date:
+                        typeof editTreatment.treatment_date === "string"
+                            ? editTreatment.treatment_date.slice(0, 10)
+                            : [
+                                editTreatment.treatment_date.getFullYear(),
+                                String(
+                                    editTreatment.treatment_date.getMonth() + 1
+                                ).padStart(2, "0"),
+                                String(
+                                    editTreatment.treatment_date.getDate()
+                                ).padStart(2, "0")
+                            ].join("-"),
 
-            is_special_price:
-                editTreatment.is_special_price,
 
-            price_note:
-                editTreatment.price_note || null
-        })
-            .then(async (response) => {
-                if (!response.ok) {
-                    const errorData =
-                        await response.json().catch(() => ({}));
+                    duration:
+                        Number(editTreatment.duration),
 
-                    throw new Error(
-                        errorData.error ||
-                        'Failed to edit treatment'
-                    );
+                    summary:
+                        editTreatment.summary,
+
+                    treatment_price:
+                        Number(editTreatment.treatment_price),
+
+                    is_special_price:
+                        Boolean(editTreatment.is_special_price),
+
+                    price_note:
+                        editTreatment.is_special_price
+                            ? editTreatment.price_note || null
+                            : null
                 }
+            );
 
-                return response.json();
-            })
-            .then(() => {
+            if (
+                !response ||
+                typeof response.json !== "function"
+            ) {
+                throw new Error(
+                    "לא ניתן להתחבר לשרת"
+                );
+            }
+
+            const data = await response.json()
+                .catch(() => null);
+
+            if (!response.ok || data?.success !== true) {
+                throw new Error(
+                    data?.message ||
+                    "עדכון הטיפול נכשל"
+                );
+            }
+
+            const refund = Number(
+                data.refund_to_wallet || 0
+            );
+
+            if (refund > 0) {
                 toast.success(
-                    'פרטי הטיפול עודכנו בהצלחה!'
+                    `הטיפול עודכן וזוכו ${refund.toFixed(2)} ₪ לארנק`
                 );
-
-                setErrors({});
-                handleCloseEditModal();
-
-                // Reload from server so debt/payment values
-                // are always calculated from the real DB data
-                loadTreatments();
-            })
-            .catch((error) => {
-                console.error(
-                    'Error editing treatment:',
-                    error
+            } else {
+                toast.success(
+                    "פרטי הטיפול עודכנו בהצלחה"
                 );
+            }
 
-                toast.error(
-                    error.message ||
-                    'שגיאה בעת עדכון הפרטים. נסי שוב.'
-                );
-            });
+            handleCloseEditModal();
+            await loadTreatments();
+
+        } catch (error) {
+            console.error(
+                "Error updating treatment:",
+                error
+            );
+
+            toast.error(
+                error.message ||
+                "שגיאה בעדכון הטיפול"
+            );
+        }
     };
+
 
     useEffect(() => {
         serverRequests("GET", "treatment-types", null)
@@ -612,130 +523,167 @@ export default function ClientTreatments() {
     };
 
 
-    const handleSaveTreatment = (clientId) => {
+
+    const handleSaveTreatment = async (
+        clientId,
+        paymentOptions = {}
+    ) => {
+        // Prevent duplicate submissions.
+        if (savingTreatmentRef.current) return;
+
         const validationErrors =
             handleValidation(newTreatment);
+
+        const directAmount = Number(
+            newTreatment.payment_amount || 0
+        );
+
+        // Use the value passed directly from the modal.
+        // React state may not have updated yet.
+        const walletAmount = Number(
+            paymentOptions.walletAmount ?? 0
+        );
+
+        const validAmount = (amount) =>
+            Number.isFinite(amount) &&
+            amount >= 0 &&
+            Math.abs(
+                amount * 100 - Math.round(amount * 100)
+            ) < 1e-7;
+
+        if (!validAmount(directAmount)) {
+            validationErrors.payment_amount =
+                "סכום התשלום הישיר אינו תקין";
+        }
+
+        if (!validAmount(walletAmount)) {
+            validationErrors.walletAmount =
+                "סכום התשלום מהארנק אינו תקין";
+        }
 
         if (Object.keys(validationErrors).length > 0) {
             setErrors(validationErrors);
             return;
         }
 
-        const treatmentToSave = {
-            client_id: clientId,
-            treatment_type_id:
-                newTreatment.treatment_type_id,
-            treatment_date:
-                newTreatment.date,
-            duration:
-                Number(newTreatment.duration),
-            summary:
-                newTreatment.summary,
-            is_special_price:
-                newTreatment.is_special_price,
-            price_note:
-                newTreatment.is_special_price
-                    ? newTreatment.price_note || null
-                    : null,
-            payment_amount: Number(newTreatment.payment_amount || 0)
-        };
+        savingTreatmentRef.current = true;
+        setSavingTreatment(true);
+        setErrors({});
 
+        let saved = false;
 
-        /*
-            If a special price was entered,
-            send it to the server.
-    
-            Otherwise, do NOT send treatment_price.
-            The Node model will take the current
-            default price from treatment_types.
-        */
-        if (newTreatment.is_special_price) {
-            treatmentToSave.treatment_price =
-                Number(newTreatment.treatment_price);
-        }
+        try {
+            const treatmentToSave = {
+                client_id: clientId,
 
+                treatment_type_id:
+                    Number(newTreatment.treatment_type_id),
 
-        serverRequests(
-            "POST",
-            "treatments",
-            treatmentToSave
-        )
-            .then(async (response) => {
-                if (!response.ok) {
-                    const errorData =
-                        await response.json().catch(() => ({}));
+                treatment_date:
+                    newTreatment.date,
 
-                    throw new Error(
-                        errorData.error ||
-                        "Failed to add treatment"
-                    );
-                }
+                duration:
+                    Number(newTreatment.duration),
 
-                return response.json();
-            })
+                summary:
+                    newTreatment.summary,
 
-            .then(() => {
-                toast.success(
-                    "הטיפול נוסף בהצלחה!"
+                is_special_price:
+                    Boolean(newTreatment.is_special_price),
+
+                price_note:
+                    newTreatment.is_special_price
+                        ? newTreatment.price_note || null
+                        : null,
+
+                // New payments, not cumulative totals.
+                directAmount:
+                    directAmount.toFixed(2),
+
+                walletAmount:
+                    walletAmount.toFixed(2)
+            };
+
+            // For a regular price, let MySQL use the
+            // current default price of the treatment type.
+            if (newTreatment.is_special_price) {
+                treatmentToSave.treatment_price =
+                    Number(newTreatment.treatment_price);
+            }
+
+            const response = await serverRequests(
+                "POST",
+                "treatments",
+                treatmentToSave
+            );
+
+            if (
+                !response ||
+                typeof response.json !== "function"
+            ) {
+                throw new Error(
+                    "לא ניתן לקבל תשובה מהשרת. " +
+                    "יש לבדוק אם הטיפול נשמר לפני ניסיון חוזר."
                 );
+            }
 
-                setAddModalOpen(false);
+            const data = await response.json()
+                .catch(() => null);
 
-                setNewTreatment({
-                    treatment_type_id: "",
-                    type: "",
-
-                    date:
-                        new Date()
-                            .toISOString()
-                            .split("T")[0],
-
-                    duration: 90,
-                    summary: "",
-
-                    treatment_price: "",
-                    is_special_price: false,
-                    price_note: ""
-                });
-
-                setErrors({});
-
-                /*
-                    Do not manually add the treatment
-                    to React state.
-    
-                    Reload it from the server so we receive:
-                    - real treatment_id
-                    - default treatment price
-                    - amount_paid
-                    - debt
-                    - special price information
-                */
-                loadTreatments();
-            })
-
-            .catch((error) => {
-                console.error(
-                    "Error adding treatment:",
-                    error
+            if (!response.ok || data?.success !== true) {
+                throw new Error(
+                    data?.message ||
+                    data?.error ||
+                    "שמירת הטיפול נכשלה"
                 );
+            }
 
-                toast.error(
-                    error.message ||
-                    "שגיאה בעת הוספת טיפול. נסי שוב."
-                );
+            saved = true;
+
+            toast.success("הטיפול נוסף בהצלחה!");
+
+            setAddModalOpen(false);
+
+            setNewTreatment({
+                treatment_type_id: "",
+                type: "",
+                date: new Date()
+                    .toISOString()
+                    .split("T")[0],
+                duration: "",
+                default_duration: "",
+                summary: "",
+                default_price: "",
+                treatment_price: "",
+                is_special_price: false,
+                price_note: "",
+                payment_amount: "",
+                walletAmount: ""
             });
+
+            // Reload the treatment with actual DB values.
+            await loadTreatments();
+
+        } catch (error) {
+            console.error("Error adding treatment:", error);
+
+            if (saved) {
+                toast.warning(
+                    "הטיפול נשמר, אך רענון הרשימה נכשל. " +
+                    "יש לרענן את העמוד."
+                );
+            } else {
+                toast.error(
+                    error.message || "שגיאה בהוספת הטיפול"
+                );
+            }
+
+        } finally {
+            savingTreatmentRef.current = false;
+            setSavingTreatment(false);
+        }
     };
 
-    const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - treatments.length) : 0;
-
-    const visibleRows = React.useMemo(
-        () =>
-            [...treatments]
-                .sort(getComparator(order, orderBy))
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-        [order, orderBy, page, rowsPerPage, treatments],
-    );
 
     return (
         <Box sx={{ width: '100%', direction: 'ltr', position: 'relative' }}>
@@ -763,564 +711,25 @@ export default function ClientTreatments() {
                     <AddIcon />
                 </Fab>
             </Tooltip>
-            <br></br><br></br><br></br>
-            <Dialog
+
+            <AddTreatmentModal
                 open={addModalOpen}
                 onClose={handleCloseAddModal}
-                dir="rtl"
-                fullWidth
-                maxWidth="sm"
-            >
-                <DialogTitle>
-                    הוספת טיפול חדש
-                </DialogTitle>
+                onSave={() => handleSaveTreatment(clientId)}
+                newTreatment={newTreatment}
+                setNewTreatment={setNewTreatment}
+                treatmentTypes={treatmentTypes}
+                errors={errors}
+            />
 
-                <DialogContent>
-
-                    {/* סוג טיפול */}
-                    <Box sx={{ mb: 2 }}>
-                        <Box
-                            display="flex"
-                            flexWrap="wrap"
-                            gap={1}
-                        >
-                            {treatmentTypes.map((type) => (
-                                <Chip
-                                    key={type.treatment_type_id}
-                                    label={type.treatment_name}
-                                    clickable
-
-                                    onClick={() =>
-                                        setNewTreatment(prev => ({
-                                            ...prev,
-                                            treatment_type_id: type.treatment_type_id,
-                                            type: type.treatment_name,
-                                            default_duration: type.default_duration || "",
-                                            duration: type.default_duration || "",
-                                            default_price: Number(type.default_price),
-                                            treatment_price: Number(type.default_price),
-                                            is_special_price: false,
-                                            price_note: ""
-                                        }))
-                                    }
-
-                                    sx={{
-                                        backgroundColor:
-                                            newTreatment.treatment_type_id === type.treatment_type_id
-                                                ? "#B68FFF"
-                                                : "transparent",
-
-                                        border: "2px solid #B68FFF",
-
-                                        color:
-                                            newTreatment.treatment_type_id === type.treatment_type_id
-                                                ? "white"
-                                                : "#B68FFF",
-
-                                        "&:hover": {
-                                            backgroundColor:
-                                                newTreatment.treatment_type_id === type.treatment_type_id
-                                                    ? "#B68FFF"
-                                                    : "rgba(182, 143, 255, 0.1)"
-                                        }
-                                    }}
-                                />
-                            ))}
-                        </Box>
-
-                        {errors.type && (
-                            <Typography
-                                variant="body2"
-                                color="error"
-                                sx={{ mt: 1 }}
-                            >
-                                {errors.type}
-                            </Typography>
-                        )}
-                    </Box>
-
-
-                    {/* מחיר + משך ברירת מחדל */}
-                    {newTreatment.treatment_type_id && (
-                        <Box
-                            sx={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                px: 2,
-                                py: 1.5,
-                                mb: 3,
-                                borderRadius: 2,
-                                backgroundColor: "#f7f7f7"
-                            }}
-                        >
-                            <Typography>
-                                מחיר מחירון:{" "}
-                                <strong>
-                                    {Number(newTreatment.default_price || 0).toFixed(2)} ₪
-                                </strong>
-                            </Typography>
-
-                            <Typography>
-                                משך זמן טיפול מומלץ:{" "}
-                                <strong>
-                                    {newTreatment.default_duration} דקות
-                                </strong>
-                            </Typography>
-                        </Box>
-                    )}
-
-
-                    {/* תאריך + משך טיפול */}
-                    <Box
-                        sx={{
-                            display: "flex",
-                            gap: 2,
-                            mb: 3
-                        }}
-                    >
-                        <TextField
-                            id="date"
-                            label="תאריך"
-                            type="date"
-                            fullWidth
-
-                            value={newTreatment.date}
-
-                            onChange={(e) =>
-                                setNewTreatment({
-                                    ...newTreatment,
-                                    date: e.target.value
-                                })
-                            }
-
-                            error={!!errors.date}
-                            helperText={errors.date}
-
-                            InputLabelProps={{
-                                shrink: true
-                            }}
-                        />
-
-                        <TextField
-                            id="duration"
-                            label="משך טיפול (בדקות)"
-                            type="number"
-                            fullWidth
-
-                            value={newTreatment.duration}
-
-                            onChange={(e) =>
-                                setNewTreatment({
-                                    ...newTreatment,
-                                    duration: e.target.value
-                                })
-                            }
-
-                            error={!!errors.duration}
-                            helperText={errors.duration}
-
-                            InputLabelProps={{
-                                shrink: true
-                            }}
-
-                            inputProps={{
-                                min: 1
-                            }}
-                        />
-                    </Box>
-
-
-                    {/* סיכום */}
-                    <TextField
-                        id="summary"
-                        label="סיכום טיפול"
-                        multiline
-                        fullWidth
-                        rows={4}
-
-                        value={newTreatment.summary}
-
-                        onChange={(e) =>
-                            setNewTreatment({
-                                ...newTreatment,
-                                summary: e.target.value
-                            })
-                        }
-
-                        error={!!errors.summary}
-                        helperText={errors.summary}
-
-                        InputLabelProps={{
-                            shrink: true
-                        }}
-
-                        sx={{
-                            mb: 2
-                        }}
-                    />
-
-
-                    {/* מחיר מיוחד */}
-                    <Box
-                        sx={{
-                            mt: 1,
-                            mb: 1
-                        }}
-                    >
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={newTreatment.is_special_price}
-
-                                    disabled={!newTreatment.treatment_type_id}
-
-                                    onChange={(e) => {
-                                        const checked = e.target.checked;
-
-                                        setNewTreatment(prev => ({
-                                            ...prev,
-
-                                            is_special_price: checked,
-
-                                            treatment_price: checked
-                                                ? prev.treatment_price
-                                                : prev.default_price,
-
-                                            price_note: checked
-                                                ? prev.price_note
-                                                : ""
-                                        }));
-                                    }}
-                                />
-                            }
-
-                            label="מחיר מיוחד לטיפול זה"
-                        />
-                    </Box>
-
-
-                    {/* שדות מחיר מיוחד */}
-                    {newTreatment.is_special_price && (
-                        <Box
-                            sx={{
-                                display: "flex",
-                                gap: 2,
-                                mt: 2
-                            }}
-                        >
-                            <TextField
-                                id="treatment-price"
-                                label="מחיר מיוחד"
-                                type="number"
-                                fullWidth
-
-                                value={newTreatment.treatment_price}
-
-                                onChange={(e) =>
-                                    setNewTreatment({
-                                        ...newTreatment,
-                                        treatment_price: e.target.value
-                                    })
-                                }
-
-                                error={!!errors.treatment_price}
-                                helperText={errors.treatment_price}
-
-                                inputProps={{
-                                    min: 0,
-                                    step: "0.01"
-                                }}
-
-                                InputProps={{
-                                    endAdornment: <span>₪</span>
-                                }}
-                            />
-
-                            <TextField
-                                id="price-note"
-                                label="הערה למחיר"
-                                fullWidth
-
-                                value={newTreatment.price_note}
-
-                                onChange={(e) =>
-                                    setNewTreatment({
-                                        ...newTreatment,
-                                        price_note: e.target.value
-                                    })
-                                }
-
-                                placeholder="לדוגמה: מחיר מבצע"
-                            />
-                        </Box>
-                    )}
-
-                    {/* תשלום */}
-                    <Box
-                        sx={{
-                            mt: 3,
-                            pt: 2,
-                            borderTop: "1px solid #e0e0e0"
-                        }}
-                    >
-                        <Typography
-                            variant="subtitle1"
-                            sx={{ mb: 1, fontWeight: "bold" }}
-                        >
-                            תשלום
-                        </Typography>
-
-                        <TextField
-                            label="סכום ששולם"
-                            type="number"
-                            fullWidth
-                            value={newTreatment.payment_amount}
-                            onChange={(e) =>
-                                setNewTreatment(prev => ({
-                                    ...prev,
-                                    payment_amount: e.target.value
-                                }))
-                            }
-                            inputProps={{
-                                min: 0,
-                                step: "0.01"
-                            }}
-                            InputProps={{
-                                endAdornment: <span>₪</span>
-                            }}
-                            placeholder="0"
-                        />
-
-                        {newTreatment.payment_amount !== "" &&
-                            newTreatment.treatment_type_id && (
-                                <Box sx={{ mt: 1.5 }}>
-                                    {Number(newTreatment.payment_amount) <
-                                        Number(newTreatment.treatment_price) ? (
-                                        <Typography color="error">
-                                            יישאר חוב של{" "}
-                                            <strong>
-                                                {(
-                                                    Number(newTreatment.treatment_price) -
-                                                    Number(newTreatment.payment_amount)
-                                                ).toFixed(2)} ₪
-                                            </strong>
-                                        </Typography>
-                                    ) : Number(newTreatment.payment_amount) >
-                                        Number(newTreatment.treatment_price) ? (
-                                        <Typography sx={{ color: "#8B5CF6" }}>
-                                            הטיפול ישולם במלואו ו־
-                                            <strong>
-                                                {(
-                                                    Number(newTreatment.payment_amount) -
-                                                    Number(newTreatment.treatment_price)
-                                                ).toFixed(2)} ₪
-                                            </strong>{" "}
-                                            יישארו כיתרת זכות
-                                        </Typography>
-                                    ) : (
-                                        <Typography color="success.main">
-                                            הטיפול ישולם במלואו
-                                        </Typography>
-                                    )}
-                                </Box>
-                            )}
-                    </Box>
-
-                </DialogContent>
-
-
-                <DialogActions
-                    sx={{
-                        px: 3,
-                        pb: 2
-                    }}
-                >
-                    <Button
-                        onClick={() => handleSaveTreatment(clientId)}
-                        color="primary"
-                    >
-                        שמירה
-                    </Button>
-
-                    <Button
-                        onClick={handleCloseAddModal}
-                        color="primary"
-                    >
-                        ביטול
-                    </Button>
-                </DialogActions>
-
-            </Dialog>
-            <Box sx={{ p: 5 }}>
-                <Paper sx={{ width: '100%', mb: 2 }}>
-
-                    <TableContainer>
-                        {treatments.length === 0 ? (
-                            <Typography
-                                variant="h6"
-                                align="center"
-                                sx={{ padding: 2, color: 'gray' }}
-                            >
-                                אין עדיין טיפולים
-                            </Typography>
-                        ) : (
-                            <Table
-                                sx={{
-                                    minWidth: 750,
-                                    '& .MuiTableCell-root': {
-                                        padding: '15px',
-                                    }
-                                }}
-                                aria-labelledby="tableTitle"
-                                size={dense ? 'small' : 'medium'}
-                            >
-                                <EnhancedTableHead
-                                    numSelected={selected.length}
-                                    order={order}
-                                    orderBy={orderBy}
-                                    onSelectAllClick={handleSelectAllClick}
-                                    onRequestSort={handleRequestSort}
-                                    rowCount={treatments.length}
-                                />
-                                <TableBody>
-                                    {visibleRows.map((row, index) => {
-                                        const isItemSelected = selected.includes(row.treatment_id);
-                                        const labelId = `enhanced-table-checkbox-${index}`;
-
-                                        return (
-                                            <TableRow
-                                                hover
-                                                onClick={(event) => handleClick(event, row.treatment_id)}
-                                                role="checkbox"
-                                                aria-checked={isItemSelected}
-                                                tabIndex={-1}
-                                                key={row.treatment_id}
-                                                selected={isItemSelected}
-                                            >
-                                                <TableCell padding="checkbox">
-                                                    <Checkbox
-                                                        color="primary"
-                                                        checked={isItemSelected}
-                                                        inputProps={{
-                                                            'aria-labelledby': labelId,
-                                                        }}
-                                                    />
-                                                </TableCell>
-                                                <TableCell align="left">{row.treatment_type}</TableCell>
-                                                <TableCell align="left">{new Date(row.treatment_date).toLocaleDateString()}</TableCell>
-                                                <TableCell align="center">{row.duration}</TableCell>
-                                                <TableCell align="left" sx={{ minWidth: 200 }}>
-                                                    {row.summary ? (
-                                                        row.summary
-                                                    ) : (
-                                                        <Chip
-                                                            label="חסר סיכום טיפול"
-                                                            variant="outlined"
-                                                            color="error"
-                                                            onClick={() => handleOpenEditModal(row)}
-                                                            sx={{
-                                                                border: '2px solid red',
-                                                                color: 'red',
-                                                                fontWeight: 'bold',
-                                                                cursor: 'pointer',
-                                                            }}
-                                                        />
-                                                    )}
-                                                </TableCell>
-                                                <TableCell align="center">
-                                                    <Box
-                                                        sx={{
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            alignItems: 'center',
-                                                            gap: 0.7
-                                                        }}
-                                                    >
-                                                        <span>
-                                                            {Number(row.treatment_price).toFixed(2)} ₪
-                                                        </span>
-
-                                                        {row.is_special_price && (
-                                                            <Chip
-                                                                label="מחיר מיוחד"
-                                                                size="small"
-                                                                variant="outlined"
-                                                                sx={{
-                                                                    color: '#8E55D6',
-                                                                    borderColor: '#B68FFF',
-                                                                    backgroundColor: 'rgba(182, 143, 255, 0.12)',
-                                                                    fontWeight: 'bold'
-                                                                }}
-                                                            />
-                                                        )}
-                                                    </Box>
-                                                </TableCell>
-
-                                                <TableCell align="center">
-                                                    {Number(row.amount_paid).toFixed(2)} ₪
-                                                </TableCell>
-
-                                                <TableCell align="center">
-                                                    {Number(row.debt) > 0 ? (
-                                                        <Chip
-                                                            label={`חוב ${Number(row.debt).toFixed(2)} ₪`}
-                                                            color="error"
-                                                            variant="outlined"
-                                                            sx={{
-                                                                fontWeight: 'bold'
-                                                            }}
-                                                        />
-                                                    ) : (
-                                                        <Chip
-                                                            label="שולם"
-                                                            color="success"
-                                                            variant="outlined"
-                                                        />
-                                                    )}
-                                                </TableCell>
-                                                <TableCell align="center">
-                                                    <IconButton
-                                                        color="primary"
-                                                        onClick={() => handleOpenEditModal(row)}
-                                                    >
-                                                        <EditIcon />
-                                                    </IconButton>
-                                                    <IconButton
-                                                        color="error"
-                                                        onClick={() => handleOpenDeleteModal(row)}
-                                                    >
-                                                        <DeleteIcon />
-                                                    </IconButton>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                    {emptyRows > 0 && (
-                                        <TableRow style={{ height: (dense ? 33 : 53) * emptyRows }}>
-                                            <TableCell colSpan={9} />
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        )}
-                    </TableContainer>
-                    <TablePagination
-                        rowsPerPageOptions={[5, 10, 25]}
-                        component="div"
-                        count={treatments.length}
-                        rowsPerPage={rowsPerPage}
-                        page={page}
-                        onPageChange={handleChangePage}
-                        onRowsPerPageChange={handleChangeRowsPerPage}
-                    />
-                </Paper>
-                <FormControlLabel
-                    control={<Switch checked={dense} onChange={handleChangeDense} />}
-                    label="Dense View"
+            <Box sx={{ p: 3 }}>
+                <TreatmentsTable
+                    treatments={treatments}
+                    onEdit={handleOpenEditModal}
+                    onDelete={handleOpenDeleteModal}
+                    onAddPayment={handleOpenPaymentModal}
                 />
             </Box>
-
 
             <Dialog open={isDeleteModalOpen} onClose={handleCloseDeleteModal} dir="rtl">
                 <DialogTitle>אישור מחיקה</DialogTitle>
@@ -1343,158 +752,34 @@ export default function ClientTreatments() {
 
                 </DialogActions>
             </Dialog>
-            <Dialog
+            <EditTreatmentModal
                 open={editModalOpen}
                 onClose={handleCloseEditModal}
-                dir="rtl"
-                fullWidth
-                maxWidth="sm"
-            >
-                <DialogTitle>עריכת פרטי טיפול</DialogTitle>
-                <DialogContent>
-                    <TextField
-                        margin="dense"
-                        id="edit-summary"
-                        multiline
-                        fullWidth
-                        variant="outlined"
-                        rows={6}
-                        value={editTreatment.summary}
-                        onChange={(e) =>
-                            setEditTreatment({ ...editTreatment, summary: e.target.value })
-                        }
-                        error={!!errors.summary}
-                        helperText={errors.summary}
-                        sx={{ marginBottom: 2 }}
-                    />
-                    <Box mt={2}>
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={editTreatment.is_special_price}
-                                    onChange={(e) =>
-                                        setEditTreatment({
-                                            ...editTreatment,
-                                            is_special_price: e.target.checked,
-                                            price_note: e.target.checked
-                                                ? editTreatment.price_note
-                                                : ''
-                                        })
-                                    }
-                                />
-                            }
-                            label="מחיר מיוחד לטיפול זה"
-                        />
-                    </Box>
+                onSave={handleSaveEdit}
+                editTreatment={editTreatment}
+                setEditTreatment={setEditTreatment}
+                treatmentTypes={treatmentTypes}
+                errors={errors}
+            />
 
-                    <TextField
-                        margin="dense"
-                        id="edit-treatment-price"
-                        label="מחיר הטיפול"
-                        type="number"
-                        fullWidth
-                        variant="outlined"
-                        value={editTreatment.treatment_price}
-                        onChange={(e) =>
-                            setEditTreatment({
-                                ...editTreatment,
-                                treatment_price: e.target.value
-                            })
-                        }
-                        disabled={!editTreatment.is_special_price}
-                        error={!!errors.treatment_price}
-                        helperText={
-                            errors.treatment_price ||
-                            (
-                                editTreatment.is_special_price
-                                    ? "המחיר הזה ישפיע רק על הטיפול הנוכחי."
-                                    : "המחיר המקורי של הטיפול."
-                            )
-                        }
-                        inputProps={{
-                            min: 0,
-                            step: "0.01"
-                        }}
-                        sx={{ marginBottom: 2 }}
-                    />
-
-                    {editTreatment.is_special_price && (
-                        <TextField
-                            margin="dense"
-                            id="edit-price-note"
-                            label="הערה למחיר המיוחד"
-                            fullWidth
-                            variant="outlined"
-                            value={editTreatment.price_note}
-                            onChange={(e) =>
-                                setEditTreatment({
-                                    ...editTreatment,
-                                    price_note: e.target.value
-                                })
-                            }
-                            placeholder="לדוגמה: מחיר מבצע"
-                            sx={{ marginBottom: 2 }}
-                        />
-                    )}
-
-                    <Box
-                        sx={{
-                            marginTop: 2,
-                            padding: 2,
-                            backgroundColor: '#f7f7f7',
-                            borderRadius: 2
-                        }}
-                    >
-                        <Typography variant="body1">
-                            מחיר הטיפול:{" "}
-                            <strong>
-                                {Number(editTreatment.treatment_price || 0).toFixed(2)} ₪
-                            </strong>
-                        </Typography>
-
-                        <Typography variant="body1">
-                            שולם עד כה:{" "}
-                            <strong>
-                                {Number(editTreatment.amount_paid || 0).toFixed(2)} ₪
-                            </strong>
-                        </Typography>
-
-                        <Typography
-                            variant="body1"
-                            sx={{
-                                color:
-                                    Number(editTreatment.treatment_price || 0) -
-                                        Number(editTreatment.amount_paid || 0) >
-                                        0
-                                        ? 'error.main'
-                                        : 'success.main',
-                                fontWeight: 'bold',
-                                marginTop: 1
-                            }}
-                        >
-                            {Math.max(
-                                Number(editTreatment.treatment_price || 0) -
-                                Number(editTreatment.amount_paid || 0),
-                                0
-                            ) > 0
-                                ? `חוב: ${Math.max(
-                                    Number(editTreatment.treatment_price || 0) -
-                                    Number(editTreatment.amount_paid || 0),
-                                    0
-                                ).toFixed(2)} ₪`
-                                : 'שולם במלואו'}
-                        </Typography>
-                    </Box>
-                </DialogContent>
-                <DialogActions sx={{ padding: 2 }}>
-                    <Button onClick={handleSaveEdit} color="primary">
-                        שמירה
-                    </Button>
-                    <Button onClick={handleCloseEditModal} color="primary">
-                        ביטול
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            <TreatmentPaymentModal
+                open={paymentModalOpen}
+                treatment={paymentTreatment}
+                onClose={() => {
+                    setPaymentModalOpen(false);
+                    setPaymentTreatment(null);
+                }}
+                clientId={clientId}
+                onSuccess={async (message) => {
+                    toast.success(message);
+                    setPaymentModalOpen(false);
+                    setPaymentTreatment(null);
+                    await loadTreatments();
+                }}
+                onError={(message) => {
+                    toast.error(message);
+                }}
+            />
         </Box>
     );
 }

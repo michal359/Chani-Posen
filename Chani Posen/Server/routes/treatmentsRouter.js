@@ -1,125 +1,220 @@
+
 const express = require("express");
 const router = express.Router();
 
 const controller = require("../controllers/treatmentsController");
 const authorizeAdmin = require("../middleware/authorizeAdmin");
 
+// -----------------------------------------
+// Response helpers
+// -----------------------------------------
+function sendResult(res, result, successStatus = 200) {
+    if (!result || result.success === false) {
+        return res.status(400).json(
+            result || {
+                success: false,
+                message: "Operation failed"
+            }
+        );
+    }
 
-// Get all treatments for a specific client
+    return res.status(successStatus).json(result);
+}
+
+function handleError(res, err, operation) {
+    console.error(`Error in ${operation}:`, err);
+
+    return res.status(400).json({
+        success: false,
+        message: err.message || "Operation failed"
+    });
+}
+
+// -----------------------------------------
+// 1. Get all treatments for a client
+// GET /treatments/:id
+// -----------------------------------------
 router.get("/:id", async (req, res) => {
-    const id = req.params.id;
-
     try {
         const result =
-            await controller.getTreatmentsByClientId(id);
+            await controller.getTreatmentsByClientId(
+                req.params.id
+            );
 
-        res.send(result);
+        return sendResult(res, result);
 
     } catch (err) {
-        console.error(
-            "Error in GET /treatments/:id:",
-            err
+        return handleError(
+            res,
+            err,
+            "GET /treatments/:id"
         );
-
-        res.status(500).send({
-            ok: false,
-            error: err.message
-        });
     }
 });
 
+// -----------------------------------------
+// 2. Add payment to an existing treatment
+// POST /treatments/:id/payments
+// -----------------------------------------
+router.post(
+    "/:id/payments",
+    authorizeAdmin,
+    async (req, res) => {
+        try {
+            const treatmentId = Number(req.params.id);
 
-// Delete treatment
+            if (
+                !Number.isSafeInteger(treatmentId) ||
+                treatmentId <= 0
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid treatment ID"
+                });
+            }
+
+            const {
+                directAmount = 0,
+                walletAmount = 0
+            } = req.body || {};
+
+            const validMoney = (value) => {
+                if (value === null || value === "") {
+                    return false;
+                }
+
+                const number = Number(value);
+
+                return (
+                    Number.isFinite(number) &&
+                    number >= 0 &&
+                    Math.abs(
+                        number * 100 -
+                        Math.round(number * 100)
+                    ) < 1e-7
+                );
+            };
+
+            if (
+                !validMoney(directAmount) ||
+                !validMoney(walletAmount)
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid payment amounts"
+                });
+            }
+
+            if (
+                Number(directAmount) === 0 &&
+                Number(walletAmount) === 0
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Enter a payment amount"
+                });
+            }
+
+            const result =
+                await controller.addTreatmentPayment(
+                    {
+                        directAmount,
+                        walletAmount
+                    },
+                    treatmentId
+                );
+
+            return sendResult(res, result, 201);
+
+        } catch (err) {
+            return handleError(
+                res,
+                err,
+                "POST /treatments/:id/payments"
+            );
+        }
+    }
+);
+
+// -----------------------------------------
+// 3. Delete treatment
+// DELETE /treatments/:id
+// -----------------------------------------
 router.delete(
     "/:id",
     authorizeAdmin,
     async (req, res) => {
-        const id = req.params.id;
-
         try {
             const result =
-                await controller.deleteTreatment(id);
+                await controller.deleteTreatment(
+                    req.params.id
+                );
 
-            res.send(result);
+            return sendResult(res, result);
 
         } catch (err) {
-            console.error(
-                "Error in DELETE /treatments/:id:",
-                err
+            return handleError(
+                res,
+                err,
+                "DELETE /treatments/:id"
             );
-
-            res.status(400).send({
-                ok: false,
-                error: err.message
-            });
         }
     }
 );
 
-
-// Update treatment
+// -----------------------------------------
+// 4. Update treatment details
+// PUT /treatments/:id
+// -----------------------------------------
 router.put(
     "/:id",
     authorizeAdmin,
     async (req, res) => {
-        const id = req.params.id;
-
         try {
             const result =
                 await controller.updateTreatment(
                     req.body,
-                    id
+                    req.params.id
                 );
 
-            res.send(result);
+            return sendResult(res, result);
 
         } catch (err) {
-            console.error(
-                "Error in PUT /treatments/:id:",
-                err
+            return handleError(
+                res,
+                err,
+                "PUT /treatments/:id"
             );
-
-            res.status(400).send({
-                ok: false,
-                error: err.message
-            });
         }
     }
 );
 
-
-// Create treatment
+// -----------------------------------------
+// 5. Create treatment
+// POST /treatments
+// -----------------------------------------
 router.post(
     "/",
     authorizeAdmin,
     async (req, res) => {
         try {
-            console.log(
-                "Received treatment body:",
-                req.body
-            );
-
             const {
                 client_id,
                 treatment_type_id,
                 treatment_date,
                 duration
-            } = req.body;
+            } = req.body || {};
 
             if (
                 !client_id ||
                 !treatment_type_id ||
                 !treatment_date ||
-                isNaN(Number(duration))
+                !Number.isSafeInteger(Number(duration)) ||
+                Number(duration) <= 0
             ) {
-                console.warn(
-                    "Missing or invalid treatment fields:",
-                    req.body
-                );
-
-                return res.status(400).send({
+                return res.status(400).json({
                     success: false,
-                    error:
+                    message:
                         "Missing or invalid required treatment fields"
                 });
             }
@@ -129,21 +224,16 @@ router.post(
                     req.body
                 );
 
-            res.status(201).send(result);
+            return sendResult(res, result, 201);
 
         } catch (err) {
-            console.error(
-                "Error in POST /treatments:",
-                err
+            return handleError(
+                res,
+                err,
+                "POST /treatments"
             );
-
-            res.status(500).send({
-                success: false,
-                error: err.message
-            });
         }
     }
 );
-
 
 module.exports = router;

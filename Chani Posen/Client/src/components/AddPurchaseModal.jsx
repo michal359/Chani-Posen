@@ -45,11 +45,12 @@ export default function AddPurchaseModal({
     userData,
     setPurchases,
     onSuccess,
-    onError
+    onError,
+    initialProduct = null
 }) {
     const [products, setProducts] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
-    const [selectedProduct, setSelectedProduct] = useState(null);
+    const [selectedProduct, setSelectedProduct] = useState(initialProduct);
 
     const [specialPriceEnabled, setSpecialPriceEnabled] =
         useState(false);
@@ -415,20 +416,22 @@ export default function AddPurchaseModal({
                 </Alert>
             )}
 
-            
 
-<ProductSelector
-    selectedProduct={selectedProduct}
-    onSelect={(product) => {
-        setSelectedProduct(product);
-        setSpecialPriceEnabled(false);
-        setSpecialPrice("");
-        setDirectAmount("");
-        setWalletAmount("");
-        setError("");
-    }}
-    title="בחירת מוצר לרכישה"
-/>
+
+            {!initialProduct && (
+                <ProductSelector
+                    selectedProduct={selectedProduct}
+                    onSelect={(product) => {
+                        setSelectedProduct(product);
+                        setSpecialPriceEnabled(false);
+                        setSpecialPrice("");
+                        setDirectAmount("");
+                        setWalletAmount("");
+                        setError("");
+                    }}
+                    title="בחירת מוצר לרכישה"
+                />
+            )}
 
 
 

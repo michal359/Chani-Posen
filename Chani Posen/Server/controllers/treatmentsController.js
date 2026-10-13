@@ -1,74 +1,51 @@
-const model = require('../model/treatmentsModel');
 
+const model = require("../model/treatmentsModel");
+
+// ----------------------------------------
+// Get all treatments for a client
+// ----------------------------------------
 async function getTreatmentsByClientId(id) {
-    try {
-        return await model.getTreatmentsByClientId(id);
-    } catch (err) {
-        console.error(
-            "Error in getTreatmentsByClientId controller:",
-            err
-        );
-        throw err;
-    }
+    return await model.getTreatmentsByClientId(id);
 }
 
+// ----------------------------------------
+// Delete an unpaid treatment
+// ----------------------------------------
 async function deleteTreatment(id) {
-    try {
-        console.log(
-            "Deleting treatment in controller. ID:",
-            id
-        );
-
-        return await model.deleteTreatment(id);
-
-    } catch (err) {
-        console.error(
-            "Error in deleteTreatment controller:",
-            err
-        );
-        throw err;
-    }
+    return await model.deleteTreatment(id);
 }
 
+// ----------------------------------------
+// Edit treatment details
+// ----------------------------------------
+// Updates treatment type, date, duration,
+// summary and price.
+//
+// Payment history is managed separately.
 async function updateTreatment(body, id) {
-    try {
-        console.log(
-            "Updating treatment in controller. ID:",
-            id
-        );
-
-        return await model.updateTreatment(body, id);
-
-    } catch (err) {
-        console.error(
-            "Error in updateTreatment controller:",
-            err
-        );
-        throw err;
-    }
+    return await model.updateTreatment(body, id);
 }
 
+// ----------------------------------------
+// Create a new treatment
+// ----------------------------------------
 async function createTreatment(body) {
-    try {
-        console.log(
-            "Creating treatment in controller:",
-            body
-        );
+    return await model.createTreatment(body);
+}
 
-        return await model.createTreatment(body);
-
-    } catch (err) {
-        console.error(
-            "Error in createTreatment controller:",
-            err
-        );
-        throw err;
-    }
+// ----------------------------------------
+// Add payment to an existing treatment
+// ----------------------------------------
+// Supports direct payments, partial payments
+// and payments from the client's wallet.
+async function addTreatmentPayment(body, id) {
+    return await model.addTreatmentPayment(body, id);
 }
 
 module.exports = {
     getTreatmentsByClientId,
     deleteTreatment,
     updateTreatment,
-    createTreatment
+    createTreatment,
+    addTreatmentPayment
 };
