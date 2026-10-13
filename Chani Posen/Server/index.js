@@ -76,6 +76,9 @@ app.use("/notifications", notificationsRouter);
 const aiRouter = require('./routes/aiRouter');
 app.use("/ai", aiRouter);
 
+const walletRouter = require("./routes/walletRouter");
+app.use("/wallet", walletRouter);
+
 
 // ראוטרים שאני אצטרך בעתיד
 

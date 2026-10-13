@@ -361,6 +361,21 @@ export default function ClientTreatments() {
             return;
         }
 
+        const selectedType = treatmentTypes.find(
+            (type) =>
+                String(type.treatment_type_id) ===
+                String(editTreatment.treatment_type_id)
+        );
+
+        const regularPrice = Number(selectedType?.default_price);
+        const actualPrice = Number(editTreatment.treatment_price);
+
+        const isActuallySpecial =
+            Boolean(editTreatment.is_special_price) &&
+            Number.isFinite(regularPrice) &&
+            Math.round(actualPrice * 100) !==
+            Math.round(regularPrice * 100);
+
         try {
             const response = await serverRequests(
                 "PUT",
@@ -393,13 +408,12 @@ export default function ClientTreatments() {
                     treatment_price:
                         Number(editTreatment.treatment_price),
 
-                    is_special_price:
-                        Boolean(editTreatment.is_special_price),
+                    is_special_price: isActuallySpecial,
 
-                    price_note:
-                        editTreatment.is_special_price
-                            ? editTreatment.price_note || null
-                            : null
+                    price_note: isActuallySpecial
+                        ? editTreatment.price_note || null
+                        : null
+
                 }
             );
 
@@ -524,6 +538,7 @@ export default function ClientTreatments() {
 
 
 
+
     const handleSaveTreatment = async (
         clientId,
         paymentOptions = {}
@@ -573,6 +588,18 @@ export default function ClientTreatments() {
         let saved = false;
 
         try {
+
+            const regularPrice = Number(newTreatment.default_price);
+
+            const actualPrice = newTreatment.is_special_price
+                ? Number(newTreatment.treatment_price)
+                : regularPrice;
+
+            const isActuallySpecial =
+                newTreatment.is_special_price &&
+                Math.round(actualPrice * 100) !==
+                Math.round(regularPrice * 100);
+
             const treatmentToSave = {
                 client_id: clientId,
 
@@ -588,8 +615,13 @@ export default function ClientTreatments() {
                 summary:
                     newTreatment.summary,
 
-                is_special_price:
-                    Boolean(newTreatment.is_special_price),
+
+                is_special_price: isActuallySpecial,
+
+                price_note: isActuallySpecial
+                    ? newTreatment.price_note || null
+                    : null,
+
 
                 price_note:
                     newTreatment.is_special_price
@@ -604,11 +636,9 @@ export default function ClientTreatments() {
                     walletAmount.toFixed(2)
             };
 
-            // For a regular price, let MySQL use the
-            // current default price of the treatment type.
-            if (newTreatment.is_special_price) {
-                treatmentToSave.treatment_price =
-                    Number(newTreatment.treatment_price);
+
+            if (isActuallySpecial) {
+                treatmentToSave.treatment_price = actualPrice;
             }
 
             const response = await serverRequests(
@@ -685,6 +715,7 @@ export default function ClientTreatments() {
     };
 
 
+
     return (
         <Box sx={{ width: '100%', direction: 'ltr', position: 'relative' }}>
             <ToastContainer
@@ -715,11 +746,15 @@ export default function ClientTreatments() {
             <AddTreatmentModal
                 open={addModalOpen}
                 onClose={handleCloseAddModal}
-                onSave={() => handleSaveTreatment(clientId)}
+                onSave={(paymentOptions) =>
+                    handleSaveTreatment(clientId, paymentOptions)
+                }
+                clientId={clientId}
                 newTreatment={newTreatment}
                 setNewTreatment={setNewTreatment}
                 treatmentTypes={treatmentTypes}
                 errors={errors}
+                saving={savingTreatment}
             />
 
             <Box sx={{ p: 3 }}>

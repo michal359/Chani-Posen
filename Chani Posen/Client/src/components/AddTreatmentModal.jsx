@@ -150,6 +150,7 @@ export default function AddTreatmentModal({
         }));
     }
 
+
     function toggleSpecialPrice(checked) {
         setNewTreatment((previous) => ({
             ...previous,
@@ -161,6 +162,7 @@ export default function AddTreatmentModal({
             walletAmount: ""
         }));
     }
+
 
     function toggleWallet(checked) {
         setUseWallet(checked);
@@ -241,16 +243,6 @@ export default function AddTreatmentModal({
     function handleSave() {
         if (!paymentValid || saving) return;
 
-        // Ensure the parent sends zero when wallet use is disabled.
-        setNewTreatment((previous) => ({
-            ...previous,
-            walletAmount: useWallet
-                ? money(fromWallet)
-                : "0.00"
-        }));
-
-        // Save is handled by the parent component.
-        // Parent must forward walletAmount to the API.
         onSave?.({
             walletAmount: useWallet
                 ? money(fromWallet)

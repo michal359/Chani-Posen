@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 
 import {
@@ -21,23 +20,34 @@ import {
     DialogActions,
     DialogTitle,
     Button,
-    CircularProgress
+    CircularProgress,
+    ListItemIcon,
+    ListItemText,
+    Fab
 } from "@mui/material";
-
-import { serverRequests } from "../Api";
 
 import FeaturedPlayListIcon from "@mui/icons-material/FeaturedPlayList";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import Fab from "@mui/material/Fab";
 import AddIcon from "@mui/icons-material/Add";
+
+import { serverRequests } from "../Api";
 
 import AddRecommendationModal from "./AddRecommendationModal";
 import AddPurchaseModal from "./AddPurchaseModal";
 
 import { ToastContainer, toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+
+import {
+    menuPaperSx,
+    menuItemSx,
+    dangerMenuItemSx,
+    menuIconSx,
+    dangerMenuIconSx,
+    menuTextProps
+} from "./shared/entityUiStyles";
 
 export default function ClientRecommendations({
     clientId,
@@ -442,34 +452,65 @@ export default function ClientRecommendations({
                 </TableContainer>
             )}
 
-            {/* Recommendation actions */}
             <Menu
                 anchorEl={anchorEl}
                 open={Boolean(anchorEl)}
                 onClose={handleMenuClose}
+                transformOrigin={{
+                    horizontal: "right",
+                    vertical: "top"
+                }}
+                anchorOrigin={{
+                    horizontal: "right",
+                    vertical: "bottom"
+                }}
+                PaperProps={{
+                    elevation: 6,
+                    sx: menuPaperSx
+                }}
             >
                 <MenuItem
                     onClick={() =>
-                        handleNavigate(
-                            selectedRecommendation?.product_id
-                        )
+                        handleNavigate(selectedRecommendation?.product_id)
                     }
+                    sx={menuItemSx}
                 >
-                    <FeaturedPlayListIcon sx={{ mr: 1 }} />
-                    מעבר לדף המוצר
+                    <ListItemIcon sx={menuIconSx}>
+                        <FeaturedPlayListIcon fontSize="small" />
+                    </ListItemIcon>
+
+                    <ListItemText
+                        primary="מעבר לדף המוצר"
+                        {...menuTextProps}
+                    />
                 </MenuItem>
 
-                <MenuItem onClick={handleAddToPurchases}>
-                    <ShoppingCartIcon sx={{ mr: 1 }} />
-                    רכישת המוצר
+                <MenuItem
+                    onClick={handleAddToPurchases}
+                    sx={menuItemSx}
+                >
+                    <ListItemIcon sx={menuIconSx}>
+                        <ShoppingCartIcon fontSize="small" />
+                    </ListItemIcon>
+
+                    <ListItemText
+                        primary="רכישת המוצר"
+                        {...menuTextProps}
+                    />
                 </MenuItem>
 
                 <MenuItem
                     onClick={handleDeleteRecommendation}
-                    sx={{ color: "error.main" }}
+                    sx={dangerMenuItemSx}
                 >
-                    <DeleteIcon sx={{ mr: 1 }} />
-                    מחיקת המלצה
+                    <ListItemIcon sx={dangerMenuIconSx}>
+                        <DeleteIcon fontSize="small" />
+                    </ListItemIcon>
+
+                    <ListItemText
+                        primary="מחיקת המלצה"
+                        {...menuTextProps}
+                    />
                 </MenuItem>
             </Menu>
 

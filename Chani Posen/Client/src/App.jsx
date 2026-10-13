@@ -1,5 +1,5 @@
 import { React, createContext, useContext, useState, useEffect, Profiler } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom"
 import './App.css'
 import Layout from "./components/Layout"
 import HomeLayout from "./components/HomeLayout"
@@ -12,6 +12,7 @@ import ClientDetails from './pages/ClientDetails'
 import ClientTreatments from './components/ClientTreatments';
 import ClientPersonalDetails from './components/ClientPersonalDetails';
 import ClientProducts from './components/ClientProducts';
+import ClientWallet from "./components/ClientWallet";
 import ClientImages from './components/ClientImages';
 import Products from './pages/Products'
 import ProductDetails from './pages/ProductDetails'
@@ -26,6 +27,10 @@ import AiAssistant from './pages/AiAssistant'
 
 import { serverRequests } from './Api'
 
+function ClientWalletRoute() {
+    const { clientId } = useParams();
+    return <ClientWallet clientId={clientId} />;
+}
 
 export const UserContext = createContext();
 
@@ -93,6 +98,7 @@ function App() {
               <Route path="personal" element={<ClientPersonalDetails />} />
               <Route path="treatments" element={<ClientTreatments />} />
               <Route path="products" element={<ClientProducts />} />
+              <Route path="wallet" element={<ClientWalletRoute />} />
               <Route path="images" element={<ClientImages userData={userData} />} />
               <Route index element={<Navigate to="personal" />} />
             </Route>

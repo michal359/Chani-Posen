@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect, useCallback } from "react";
+
 import {
     Box,
     Typography,
@@ -22,23 +22,36 @@ import {
     DialogTitle,
     DialogContent,
     Button,
-    CircularProgress
+    CircularProgress,
+    ListItemIcon,
+    ListItemText,
+    Fab
 } from "@mui/material";
 
-import { serverRequests } from "../Api";
-
+import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import FeaturedPlayListIcon from "@mui/icons-material/FeaturedPlayList";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import PaymentsIcon from "@mui/icons-material/Payments";
 import AddIcon from "@mui/icons-material/Add";
-import Fab from "@mui/material/Fab";
+
+import { serverRequests } from "../Api";
 
 import { ToastContainer, toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 
 import EditClientPurchaseStatusModal from "./EditClientPurchaseStatusModal";
 import AddPurchaseModal from "./AddPurchaseModal";
+
+import {
+    menuPaperSx,
+    menuItemSx,
+    dangerMenuItemSx,
+    menuIconSx,
+    dangerMenuIconSx,
+    menuTextProps
+} from "./shared/entityUiStyles";
 
 // Convert monetary values to cents for exact calculations.
 function toCents(value) {
@@ -450,41 +463,70 @@ export default function ClientPurchases({
                 </TableContainer>
             )}
 
-            {/* Actions menu */}
+
             <Menu
                 anchorEl={anchorEl}
                 open={Boolean(anchorEl)}
                 onClose={handleMenuClose}
+                transformOrigin={{
+                    horizontal: "right",
+                    vertical: "top"
+                }}
+                anchorOrigin={{
+                    horizontal: "right",
+                    vertical: "bottom"
+                }}
+                PaperProps={{
+                    elevation: 6,
+                    sx: menuPaperSx
+                }}
             >
                 <MenuItem
                     onClick={() =>
-                        handleNavigate(
-                            selectedProduct?.product_id
-                        )
+                        handleNavigate(selectedProduct?.product_id)
                     }
+                    sx={menuItemSx}
                 >
-                    <FeaturedPlayListIcon sx={{ mr: 1 }} />
-                    מעבר לדף המוצר
+                    <ListItemIcon sx={menuIconSx}>
+                        <FeaturedPlayListIcon fontSize="small" />
+                    </ListItemIcon>
+
+                    <ListItemText
+                        primary="מעבר לדף המוצר"
+                        {...menuTextProps}
+                    />
                 </MenuItem>
 
-                <MenuItem onClick={handleEditPayment}>
-                    <EditIcon sx={{ mr: 1 }} />
-                    עריכת תשלום
-                </MenuItem>
+                <MenuItem
+                    onClick={handleEditPayment}
+                    sx={menuItemSx}
+                >
+                    <ListItemIcon sx={menuIconSx}>
+                        <EditIcon fontSize="small" />
+                    </ListItemIcon>
 
+                    <ListItemText
+                        primary="עריכת תשלום"
+                        {...menuTextProps}
+                    />
+                </MenuItem>
 
                 {selectedProduct &&
                     Number(selectedProduct.amount_paid) === 0 && (
                         <MenuItem
                             onClick={handleDeletePurchase}
-                            sx={{ color: "error.main" }}
+                            sx={dangerMenuItemSx}
                         >
-                            <DeleteIcon sx={{ mr: 1 }} />
-                            מחיקת רכישה
-                        </MenuItem>
-                    )
-                }
+                            <ListItemIcon sx={dangerMenuIconSx}>
+                                <DeleteIcon fontSize="small" />
+                            </ListItemIcon>
 
+                            <ListItemText
+                                primary="מחיקת רכישה"
+                                {...menuTextProps}
+                            />
+                        </MenuItem>
+                    )}
             </Menu>
 
             {/* Edit payment modal */}

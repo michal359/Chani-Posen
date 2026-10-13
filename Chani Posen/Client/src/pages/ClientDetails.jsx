@@ -12,6 +12,7 @@ import {
     DialogActions,
     DialogContent,
 } from '@mui/material';
+import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import Fab from '@mui/material/Fab';
 import Tooltip from '@mui/material/Tooltip';
@@ -74,7 +75,13 @@ export default function ClientDetails({ userData }) {
     const [openEdit, setOpenEdit] = useState(false);
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const location = useLocation();
-    const validTabs = ['personal', 'treatments', 'products', 'images'];
+    const validTabs = [
+        "personal",
+        "treatments",
+        "products",
+        "wallet",
+        "images"
+    ];
     const currentTab = location.pathname.split('/').pop();
     const tabValue = validTabs.includes(currentTab) ? currentTab : false;
 
@@ -280,12 +287,13 @@ export default function ClientDetails({ userData }) {
                             <Tab value="personal" label="פרטים אישיים" component={Link} to={`/admin-home/clients/${clientId}/personal`} />
                             <Tab value="treatments" label="טיפולים" component={Link} to={`/admin-home/clients/${clientId}/treatments`} />
                             <Tab value="products" label="מוצרים" component={Link} to={`/admin-home/clients/${clientId}/products`} />
+                            <Tab value="wallet" label="ארנק" icon={<AccountBalanceWalletOutlinedIcon sx={{ fontSize: 20 }} />} iconPosition="start" component={Link} to={`/admin-home/clients/${clientId}/wallet`} sx={{ minHeight: 48, gap: 0.75, "&.Mui-selected": { color: "#A256E8", fontWeight: 700 } }} />
                             <Tab value="images" label="תמונות" component={Link} to={`/admin-home/clients/${clientId}/images`} />
                         </Tabs>
                     </Box>
 
                     <Box mt={2} sx={{ padding: 2, width: '100vw' }}>
-                        <Outlet context={{ clientData, clientId, userData }}/>
+                        <Outlet context={{ clientData, clientId, userData }} />
                     </Box>
 
                 </Box>

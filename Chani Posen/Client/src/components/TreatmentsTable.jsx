@@ -21,14 +21,35 @@ import {
     Button,
     Divider,
     Stack,
-    Tooltip
+    Tooltip,
+    ListItemIcon,
+    ListItemText
 } from "@mui/material";
 
+import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
+import PaymentsIcon from "@mui/icons-material/Payments";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
-import PaymentsIcon from "@mui/icons-material/Payments";
+
+import {
+    menuPaperSx,
+    menuItemSx,
+    dangerMenuItemSx,
+    menuIconSx,
+    dangerMenuIconSx,
+    menuTextProps,
+    paidChipSx,
+    debtChipSx,
+    specialPriceChipSx,
+    primaryButtonSx,
+    outlinedPurpleButtonSx,
+    detailsDialogTitleSx,
+    detailsSectionBoxSx,
+    detailLabelSx,
+    detailValueSx
+} from "./shared/entityUiStyles";
 
 function money(value) {
     const amount = Number(value ?? 0);
@@ -70,37 +91,28 @@ function DebtChip({ treatment }) {
     return debt > 0 ? (
         <Chip
             label={`חוב ${money(debt / 100)}`}
-            color="error"
             variant="outlined"
             size="small"
-            sx={{ fontWeight: "bold" }}
+            sx={debtChipSx}
         />
     ) : (
         <Chip
             label="שולם"
-            color="success"
             variant="outlined"
             size="small"
+            sx={paidChipSx}
         />
     );
 }
 
 function DetailField({ label, children }) {
     return (
-        <Box sx={{ mb: 2 }}>
-            <Typography
-                variant="caption"
-                color="text.secondary"
-            >
+        <Box sx={{ mb: 2.25 }}>
+            <Typography sx={detailLabelSx}>
                 {label}
             </Typography>
 
-            <Typography
-                sx={{
-                    whiteSpace: "pre-wrap",
-                    overflowWrap: "anywhere"
-                }}
-            >
+            <Typography sx={detailValueSx}>
                 {children || "—"}
             </Typography>
         </Box>
@@ -310,33 +322,30 @@ export default function TreatmentsTable({
 
                                 <TableCell align="center">
                                     <Stack
-                                        spacing={0.5}
+                                        spacing={1}
                                         alignItems="center"
+                                        justifyContent="center"
+                                        sx={{ py: 0.75 }}
                                     >
-                                        <Typography>
-                                            {money(
-                                                treatment.treatment_price
-                                            )}
+                                        <Typography fontWeight={500}>
+                                            {money(treatment.treatment_price)}
                                         </Typography>
 
-                                        {Boolean(
-                                            treatment.is_special_price
-                                        ) && (
-                                                <Chip
-                                                    label="מחיר מיוחד"
-                                                    size="small"
-                                                    variant="outlined"
-                                                    sx={{
-                                                        color: "#8E55D6",
-                                                        borderColor: "#B68FFF"
-                                                    }}
-                                                />
-                                            )}
+                                        {Boolean(treatment.is_special_price) && (
+                                            <Chip
+                                                label="מחיר מיוחד"
+                                                size="small"
+                                                variant="outlined"
+                                                sx={specialPriceChipSx}
+                                            />
+                                        )}
                                     </Stack>
                                 </TableCell>
 
-                                <TableCell align="center">
-                                    {money(treatment.amount_paid)}
+                                <TableCell align="center" sx={{ py: 2.25 }}>
+                                    <Typography fontWeight={500}>
+                                        {money(treatment.amount_paid)}
+                                    </Typography>
                                 </TableCell>
 
                                 <TableCell align="center">
@@ -394,18 +403,35 @@ export default function TreatmentsTable({
                 labelRowsPerPage="טיפולים בעמוד:"
             />
 
-            {/* Three-dot actions */}
             <Menu
                 anchorEl={anchorEl}
                 open={Boolean(anchorEl)}
                 onClose={closeMenu}
+                transformOrigin={{
+                    horizontal: "right",
+                    vertical: "top"
+                }}
+                anchorOrigin={{
+                    horizontal: "right",
+                    vertical: "bottom"
+                }}
+                PaperProps={{
+                    elevation: 6,
+                    sx: menuPaperSx
+                }}
             >
                 <MenuItem
-                    onClick={() =>
-                        openDetails(selectedTreatment)
-                    }
+                    onClick={() => openDetails(selectedTreatment)}
+                    sx={menuItemSx}
                 >
-                    פרטי הטיפול
+                    <ListItemIcon sx={menuIconSx}>
+                        <ArticleOutlinedIcon fontSize="small" />
+                    </ListItemIcon>
+
+                    <ListItemText
+                        primary="פרטי טיפול"
+                        {...menuTextProps}
+                    />
                 </MenuItem>
 
                 {selectedTreatment &&
@@ -415,32 +441,48 @@ export default function TreatmentsTable({
                             onClick={() =>
                                 handleAddPayment(selectedTreatment)
                             }
+                            sx={menuItemSx}
                         >
-                            <PaymentsIcon sx={{ ml: 1 }} />
-                            הוספת תשלום
+                            <ListItemIcon sx={menuIconSx}>
+                                <PaymentsIcon fontSize="small" />
+                            </ListItemIcon>
+
+                            <ListItemText
+                                primary="הוספת תשלום"
+                                {...menuTextProps}
+                            />
                         </MenuItem>
                     )}
 
                 <MenuItem
-                    onClick={() =>
-                        editTreatment(selectedTreatment)
-                    }
+                    onClick={() => editTreatment(selectedTreatment)}
+                    sx={menuItemSx}
                 >
-                    <EditIcon sx={{ ml: 1 }} />
-                    עריכת טיפול
+                    <ListItemIcon sx={menuIconSx}>
+                        <EditIcon fontSize="small" />
+                    </ListItemIcon>
+
+                    <ListItemText
+                        primary="עריכת טיפול"
+                        {...menuTextProps}
+                    />
                 </MenuItem>
 
                 {canDelete(selectedTreatment) && (
                     <MenuItem
-                        sx={{ color: "error.main" }}
                         onClick={() =>
-                            deleteTreatment(
-                                selectedTreatment
-                            )
+                            deleteTreatment(selectedTreatment)
                         }
+                        sx={dangerMenuItemSx}
                     >
-                        <DeleteIcon sx={{ ml: 1 }} />
-                        מחיקת טיפול
+                        <ListItemIcon sx={dangerMenuIconSx}>
+                            <DeleteIcon fontSize="small" />
+                        </ListItemIcon>
+
+                        <ListItemText
+                            primary="מחיקת טיפול"
+                            {...menuTextProps}
+                        />
                     </MenuItem>
                 )}
             </Menu>
@@ -453,20 +495,10 @@ export default function TreatmentsTable({
                 maxWidth="sm"
                 dir="rtl"
             >
-                <DialogTitle
-                    sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center"
-                    }}
-                >
+                <DialogTitle sx={detailsDialogTitleSx}>
                     פרטי הטיפול
 
-                    <IconButton
-                        onClick={() =>
-                            setDetailsOpen(false)
-                        }
-                    >
+                    <IconButton onClick={() => setDetailsOpen(false)}>
                         <CloseIcon />
                     </IconButton>
                 </DialogTitle>
@@ -474,63 +506,75 @@ export default function TreatmentsTable({
                 <DialogContent dividers>
                     {selectedTreatment && (
                         <>
-                            <DetailField label="סוג הטיפול">
-                                {selectedTreatment.treatment_type ||
-                                    selectedTreatment.treatment_name}
-                            </DetailField>
+                            <Box sx={detailsSectionBoxSx}>
+                                <DetailField label="סוג הטיפול">
+                                    {selectedTreatment.treatment_type ||
+                                        selectedTreatment.treatment_name}
+                                </DetailField>
 
-                            <DetailField label="תאריך">
-                                {formatDate(
-                                    selectedTreatment.treatment_date
+                                <DetailField label="תאריך">
+                                    {formatDate(selectedTreatment.treatment_date)}
+                                </DetailField>
+
+                                <DetailField label="משך הטיפול">
+                                    {selectedTreatment.duration} דקות
+                                </DetailField>
+                            </Box>
+
+                            <Box sx={detailsSectionBoxSx}>
+                                <DetailField label="סיכום הטיפול">
+                                    {selectedTreatment.summary ||
+                                        "לא הוזן סיכום טיפול"}
+                                </DetailField>
+                            </Box>
+
+                            <Box sx={detailsSectionBoxSx}>
+                                <DetailField label="מחיר הטיפול">
+                                    {money(selectedTreatment.treatment_price)}
+                                </DetailField>
+
+                                {Boolean(selectedTreatment.is_special_price) && (
+                                    <Box sx={{ mb: 2.25 }}>
+                                        <Typography sx={detailLabelSx}>
+                                            סוג מחיר
+                                        </Typography>
+
+                                        <Chip
+                                            label="מחיר מיוחד"
+                                            variant="outlined"
+                                            size="small"
+                                            sx={specialPriceChipSx}
+                                        />
+                                    </Box>
                                 )}
-                            </DetailField>
 
-                            <DetailField label="משך הטיפול">
-                                {selectedTreatment.duration} דקות
-                            </DetailField>
-
-                            <Divider sx={{ my: 2 }} />
-
-                            <DetailField label="סיכום הטיפול">
-                                {selectedTreatment.summary ||
-                                    "לא הוזן סיכום טיפול"}
-                            </DetailField>
-
-                            <Divider sx={{ my: 2 }} />
-
-                            <DetailField label="מחיר הטיפול">
-                                {money(
-                                    selectedTreatment.treatment_price
-                                )}
-                            </DetailField>
-
-                            {Boolean(
-                                selectedTreatment.is_special_price
-                            ) && (
+                                {Boolean(selectedTreatment.is_special_price) && (
                                     <DetailField label="הערה למחיר מיוחד">
-                                        {selectedTreatment.price_note ||
-                                            "מחיר מיוחד"}
+                                        {selectedTreatment.price_note || "מחיר מיוחד"}
                                     </DetailField>
                                 )}
+                            </Box>
 
-                            <DetailField label="כבר שולם">
-                                {money(selectedTreatment.amount_paid)}
-                            </DetailField>
+                            <Box sx={detailsSectionBoxSx}>
+                                <DetailField label="כבר שולם">
+                                    {money(selectedTreatment.amount_paid)}
+                                </DetailField>
 
-                            <Box
-                                sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 2
-                                }}
-                            >
-                                <Typography>
-                                    מצב התשלום:
-                                </Typography>
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        gap: 2,
+                                        flexWrap: "wrap"
+                                    }}
+                                >
+                                    <Typography sx={detailLabelSx}>
+                                        מצב התשלום
+                                    </Typography>
 
-                                <DebtChip
-                                    treatment={selectedTreatment}
-                                />
+                                    <DebtChip treatment={selectedTreatment} />
+                                </Box>
                             </Box>
                         </>
                     )}
@@ -540,13 +584,13 @@ export default function TreatmentsTable({
                     sx={{
                         p: 2,
                         justifyContent: "flex-start",
-                        gap: 1
+                        gap: 1,
+                        borderTop: "1px solid #F1F1F1"
                     }}
                 >
                     <Button
-                        onClick={() =>
-                            setDetailsOpen(false)
-                        }
+                        onClick={() => setDetailsOpen(false)}
+                        sx={outlinedPurpleButtonSx}
                     >
                         סגירה
                     </Button>
@@ -560,12 +604,7 @@ export default function TreatmentsTable({
                                 onClick={() =>
                                     handleAddPayment(selectedTreatment)
                                 }
-                                sx={{
-                                    bgcolor: "#B68FFF",
-                                    "&:hover": {
-                                        bgcolor: "#A256E8"
-                                    }
-                                }}
+                                sx={primaryButtonSx}
                             >
                                 הוספת תשלום
                             </Button>
@@ -574,11 +613,8 @@ export default function TreatmentsTable({
                     <Button
                         variant="outlined"
                         startIcon={<EditIcon />}
-                        onClick={() =>
-                            editTreatment(
-                                selectedTreatment
-                            )
-                        }
+                        onClick={() => editTreatment(selectedTreatment)}
+                        sx={outlinedPurpleButtonSx}
                     >
                         עריכה
                     </Button>
@@ -588,10 +624,12 @@ export default function TreatmentsTable({
                             color="error"
                             startIcon={<DeleteIcon />}
                             onClick={() =>
-                                deleteTreatment(
-                                    selectedTreatment
-                                )
+                                deleteTreatment(selectedTreatment)
                             }
+                            sx={{
+                                borderRadius: 1.75,
+                                px: 2.2
+                            }}
                         >
                             מחיקה
                         </Button>
